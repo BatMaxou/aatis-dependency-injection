@@ -10,11 +10,15 @@
     ],
     "autoload": {
         "psr-4": {
-            "Aatis\\DependencyInjection\\": ""
+            "Aatis\\DependencyInjection\\": "src/"
         }
     },
     "require": {
         "symfony/yaml": "^6.3",
         "psrphp/psr11": "^1.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.38",
+        "phpstan/phpstan": "^1.10"
     }
 }
