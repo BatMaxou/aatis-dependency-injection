@@ -1,5 +1,5 @@
 {
-    "name": "aatis/denpendency-injection",
+    "name": "aatis/dependency-injection",
     "type": "library",
     "description": "Dependency Injection of Aatis",
     "authors": [
