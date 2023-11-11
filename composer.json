@@ -1,0 +1,20 @@
+{
+    "name": "aatis/denpendency-injection",
+    "type": "library",
+    "description": "Dependency Injection of Aatis",
+    "authors": [
+        {
+            "name": "Maxime Batista",
+            "email": "maximebatista.lycee@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Aatis\\DependencyInjection\\": ""
+        }
+    },
+    "require": {
+        "symfony/yaml": "^6.3",
+        "psrphp/psr11": "^1.0"
+    }
+}
