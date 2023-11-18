@@ -16,6 +16,11 @@ class Service
      */
     private array $args = [];
 
+    /**
+     * @var string[]
+     */
+    private array $tags = [];
+
     private static ?Container $container = null;
 
     /**
@@ -30,6 +35,54 @@ class Service
     public static function setContainer(Container $container): void
     {
         self::$container = $container;
+    }
+
+    public function getInstance(): object
+    {
+        if (self::$container && $this->class === self::$container::class) {
+            return self::$container;
+        }
+
+        if (!$this->instance) {
+            $this->instanciate();
+        }
+
+        /**
+         * @var object $instance
+         */
+        $instance = $this->instance;
+
+        return $instance;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getDependencies(): array
+    {
+        $dependencies = [];
+        $reflexion = new \ReflectionClass($this->class);
+        $constructor = $reflexion->getConstructor();
+
+        if (!$constructor) {
+            return $dependencies;
+        }
+
+        $parameters = $constructor->getParameters();
+
+        foreach ($parameters as $parameter) {
+            $type = $parameter->getType();
+
+            if (!$type || !($type instanceof \ReflectionNamedType)) {
+                $dependencies[$parameter->getName()] = null;
+            } elseif (str_contains($type->getName(), '\\')) {
+                $dependencies[$parameter->getName()] = $type->getName();
+            } else {
+                $dependencies[$parameter->getName()] = $type->getName();
+            }
+        }
+
+        return $dependencies;
     }
 
     /**
@@ -85,54 +138,6 @@ class Service
         }
 
         $this->instance = new ($this->class)(...$this->args);
-    }
-
-    public function getInstance(): object
-    {
-        if (self::$container && $this->class === self::$container::class) {
-            return self::$container;
-        }
-
-        if (!$this->instance) {
-            $this->instanciate();
-        }
-
-        /**
-         * @var object $instance
-         */
-        $instance = $this->instance;
-
-        return $instance;
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getDependencies(): array
-    {
-        $dependencies = [];
-        $reflexion = new \ReflectionClass($this->class);
-        $constructor = $reflexion->getConstructor();
-
-        if (!$constructor) {
-            return $dependencies;
-        }
-
-        $parameters = $constructor->getParameters();
-
-        foreach ($parameters as $parameter) {
-            $type = $parameter->getType();
-
-            if (!$type || !($type instanceof \ReflectionNamedType)) {
-                $dependencies[$parameter->getName()] = null;
-            } elseif (str_contains($type->getName(), '\\')) {
-                $dependencies[$parameter->getName()] = $type->getName();
-            } else {
-                $dependencies[$parameter->getName()] = $type->getName();
-            }
-        }
-
-        return $dependencies;
     }
 
     public function isInstancied(): bool
