@@ -23,10 +23,14 @@ use Symfony\Component\Yaml\Yaml;
  */
 class ContainerBuilder
 {
-    /** @var array<int, string> */
+    /**
+     * @var array<int, string>
+     */
     private array $excludePaths = [];
 
-    /** @var ServiceParams */
+    /** 
+     * @var ServiceParams 
+     */
     private array $givenParams = [];
 
     private Container $container;
@@ -93,6 +97,11 @@ class ContainerBuilder
             return;
         }
         $service = new Service($namespace);
+        $tags = $this->transformAbstractToTags($this->getAbstractClasses($namespace));
+
+        if (!empty($tags)) {
+            $service->setTags($tags);
+        }
 
         if (isset($this->givenParams[$namespace])) {
             if (
@@ -135,5 +144,38 @@ class ContainerBuilder
             $this->excludePaths = $config['excludes'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
+    }
+
+    /**
+     * @return class-string[]
+     */
+    private function getAbstractClasses(string $namespace): iterable
+    {
+        while ($parentClass = get_parent_class($namespace)) {
+            if ((new \ReflectionClass($parentClass))->isAbstract()) {
+                yield $parentClass;
+            }
+            $namespace = $parentClass;
+        }
+    }
+
+    /**
+     * @param class-string[] $classes
+     *
+     * @return string[]
+     */
+    private function transformAbstractToTags(iterable $classes): array
+    {
+        $tags = [];
+        foreach ($classes as $class) {
+            $temp = str_split(str_replace('Abstract', '', (new \ReflectionClass($class))->getShortName()));
+            $tag = implode(array_map(
+                fn ($letter) => ctype_upper($letter) ? '-' . strtolower($letter) : $letter,
+                $temp,
+            ));
+            $tags[] = substr($tag, 1);
+        }
+
+        return $tags;
     }
 }

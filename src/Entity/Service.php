@@ -37,6 +37,14 @@ class Service
         self::$container = $container;
     }
 
+    /**
+     * @return string[]
+     */
+    public function getTags(): array
+    {
+        return $this->tags;
+    }
+
     public function getInstance(): object
     {
         if (self::$container && $this->class === self::$container::class) {
@@ -56,7 +64,7 @@ class Service
     }
 
     /**
-     * @return string[]
+     * @return array<string, string|null>
      */
     public function getDependencies(): array
     {
@@ -99,6 +107,14 @@ class Service
     public function setArgs(array $args): void
     {
         $this->args = $args;
+    }
+
+    /**
+     * @param string[] $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = $tags;
     }
 
     public function setInstance(object $instance): void
