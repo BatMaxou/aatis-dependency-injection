@@ -5,14 +5,17 @@ namespace Aatis\DependencyInjection\Entity;
 class Service
 {
     private ?object $instance = null;
+
     /**
      * @var array<string, mixed>
      */
     private array $givenArgs = [];
+
     /**
      * @var mixed[]
      */
     private array $args = [];
+
     private static ?Container $container = null;
 
     /**

@@ -23,12 +23,12 @@ use Symfony\Component\Yaml\Yaml;
  */
 class ContainerBuilder
 {
-    /**
-     * @var array<int, string>
-     */
+    /** @var array<int, string> */
     private array $excludePaths = [];
+
     /** @var ServiceParams */
     private array $givenParams = [];
+
     private Container $container;
 
     /**
@@ -60,7 +60,7 @@ class ContainerBuilder
         $folderContent = array_diff(scandir($folderPath) ?: [], ['..', '.']);
 
         foreach ($folderContent as $element) {
-            $path = $folderPath.'/'.$element;
+            $path = $folderPath . '/' . $element;
 
             if (is_dir($path)) {
                 $this->registerFolder($path);
@@ -111,16 +111,16 @@ class ContainerBuilder
 
     private function getShortPath(string $path): string
     {
-        return str_replace($_ENV['DOCUMENT_ROOT'].'/../src', '', $path);
+        return str_replace($_ENV['DOCUMENT_ROOT'] . '/../src', '', $path);
     }
 
     private function transformToNamespace(string $filePath): string
     {
         /** @var ComposerJsonConfig */
-        $composerJson = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
+        $composerJson = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'] . '/../composer.json') ?: '', true);
         $autoloaderInfos = $composerJson['autoload']['psr-4'];
         $baseNamespace = array_key_first(array_filter($autoloaderInfos, fn ($value) => 'src/' === $value));
-        $temp = str_replace($_ENV['DOCUMENT_ROOT'].'/../src/', $baseNamespace ?? 'App\\', $filePath);
+        $temp = str_replace($_ENV['DOCUMENT_ROOT'] . '/../src/', $baseNamespace ?? 'App\\', $filePath);
         $temp = str_replace(DIRECTORY_SEPARATOR, '\\', $temp);
         $temp = str_replace('.php', '', $temp);
 
@@ -129,9 +129,9 @@ class ContainerBuilder
 
     private function getConfig(): void
     {
-        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml')) {
+        if (file_exists($_ENV['DOCUMENT_ROOT'] . '/../config/services.yaml')) {
             /** @var YamlConfig */
-            $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml');
+            $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'] . '/../config/services.yaml');
             $this->excludePaths = $config['excludes'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
