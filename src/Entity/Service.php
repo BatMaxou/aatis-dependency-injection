@@ -59,7 +59,9 @@ class Service
         $args = [];
 
         foreach ($this->getDependencies() as $varName => $dependencyType) {
-            if ($dependencyType && str_contains($dependencyType, '\\')) {
+            if (self::$container::class === $dependencyType) {
+                $args[] = self::$container;
+            } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
                 if (!self::$container->has($dependencyType)) {
                     if (class_exists($dependencyType)) {
                         $service = new Service($dependencyType);
@@ -120,7 +122,7 @@ class Service
 
             if (!$type || !($type instanceof \ReflectionNamedType)) {
                 $dependencies[$parameter->getName()] = null;
-            } else if (str_contains($type->getName(), '\\')) {
+            } elseif (str_contains($type->getName(), '\\')) {
                 $dependencies[$parameter->getName()] = $type->getName();
             } else {
                 $dependencies[$parameter->getName()] = $type->getName();
