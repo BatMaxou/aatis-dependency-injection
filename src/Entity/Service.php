@@ -104,30 +104,38 @@ class Service
     /**
      * @param array<string, mixed> $givenArgs
      */
-    public function setGivenArgs(array $givenArgs): void
+    public function setGivenArgs(array $givenArgs): static
     {
         $this->givenArgs = $givenArgs;
+
+        return $this;
     }
 
     /**
      * @param mixed[] $args
      */
-    public function setArgs(array $args): void
+    public function setArgs(array $args): static
     {
         $this->args = $args;
+
+        return $this;
     }
 
     /**
      * @param string[] $tags
      */
-    public function setTags(array $tags): void
+    public function setTags(array $tags): static
     {
         $this->tags = $tags;
+
+        return $this;
     }
 
-    public function setInstance(object $instance): void
+    public function setInstance(object $instance): static
     {
         $this->instance = $instance;
+
+        return $this;
     }
 
     private function instanciate(): void
