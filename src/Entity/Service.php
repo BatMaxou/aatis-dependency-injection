@@ -5,14 +5,22 @@ namespace Aatis\DependencyInjection\Entity;
 class Service
 {
     private ?object $instance = null;
+
     /**
      * @var array<string, mixed>
      */
     private array $givenArgs = [];
+
     /**
      * @var mixed[]
      */
     private array $args = [];
+
+    /**
+     * @var string[]
+     */
+    private array $tags = [];
+
     private static ?Container $container = null;
 
     /**
@@ -30,56 +38,11 @@ class Service
     }
 
     /**
-     * @param array<string, mixed> $givenArgs
+     * @return string[]
      */
-    public function setGivenArgs(array $givenArgs): void
+    public function getTags(): array
     {
-        $this->givenArgs = $givenArgs;
-    }
-
-    /**
-     * @param mixed[] $args
-     */
-    public function setArgs(array $args): void
-    {
-        $this->args = $args;
-    }
-
-    public function setInstance(object $instance): void
-    {
-        $this->instance = $instance;
-    }
-
-    private function instanciate(): void
-    {
-        if (!self::$container) {
-            throw new \Exception('Container not set');
-        }
-
-        $args = [];
-
-        foreach ($this->getDependencies() as $varName => $dependencyType) {
-            if ($dependencyType && str_contains($dependencyType, '\\')) {
-                if (!self::$container->has($dependencyType)) {
-                    if (class_exists($dependencyType)) {
-                        $service = new Service($dependencyType);
-                        self::$container->set($dependencyType, $service);
-                        $service->instanciate();
-                    } else {
-                        throw new \Exception("Class $dependencyType not found");
-                    }
-                }
-                $args[] = self::$container->get($dependencyType);
-            } else {
-                $args[] = $this->givenArgs[$varName];
-            }
-        }
-
-        if (!empty($args)) {
-            $this->setArgs($args);
-        }
-
-        $this->instance = new ($this->class)(...$this->args);
+        return $this->tags;
     }
 
     public function getInstance(): object
@@ -101,7 +64,7 @@ class Service
     }
 
     /**
-     * @return string[]
+     * @return array<string, string|null>
      */
     public function getDependencies(): array
     {
@@ -120,7 +83,7 @@ class Service
 
             if (!$type || !($type instanceof \ReflectionNamedType)) {
                 $dependencies[$parameter->getName()] = null;
-            } else if (str_contains($type->getName(), '\\')) {
+            } elseif (str_contains($type->getName(), '\\')) {
                 $dependencies[$parameter->getName()] = $type->getName();
             } else {
                 $dependencies[$parameter->getName()] = $type->getName();
@@ -128,6 +91,69 @@ class Service
         }
 
         return $dependencies;
+    }
+
+    /**
+     * @param array<string, mixed> $givenArgs
+     */
+    public function setGivenArgs(array $givenArgs): void
+    {
+        $this->givenArgs = $givenArgs;
+    }
+
+    /**
+     * @param mixed[] $args
+     */
+    public function setArgs(array $args): void
+    {
+        $this->args = $args;
+    }
+
+    /**
+     * @param string[] $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = $tags;
+    }
+
+    public function setInstance(object $instance): void
+    {
+        $this->instance = $instance;
+    }
+
+    private function instanciate(): void
+    {
+        if (!self::$container) {
+            throw new \Exception('Container not set');
+        }
+
+        $args = [];
+
+        foreach ($this->getDependencies() as $varName => $dependencyType) {
+            if (self::$container::class === $dependencyType) {
+                $args[] = self::$container;
+            } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
+                if (!self::$container->has($dependencyType)) {
+                    if (class_exists($dependencyType)) {
+                        $service = new Service($dependencyType);
+                        self::$container->set($dependencyType, $service);
+                        $service->instanciate();
+                    } else {
+                        throw new \Exception("Class $dependencyType not found");
+                    }
+                }
+                $args[] = self::$container->get($dependencyType);
+            } else {
+                $args[] = $this->givenArgs[$varName];
+            }
+        }
+
+        if (!empty($args)) {
+            $this->setArgs($args);
+        }
+
+        $this->instance = new ($this->class)(...$this->args);
     }
 
     public function isInstancied(): bool
