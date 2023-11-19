@@ -38,6 +38,14 @@ class Service
     }
 
     /**
+     * @return class-string
+     */
+    public function getClass(): string
+    {
+        return $this->class;
+    }
+
+    /**
      * @return string[]
      */
     public function getTags(): array
