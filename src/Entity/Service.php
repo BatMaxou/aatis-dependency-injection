@@ -72,7 +72,7 @@ class Service
     }
 
     /**
-     * @return array<string, string|null>
+     * @return array<string, class-string|string|null>
      */
     public function getDependencies(): array
     {
@@ -150,6 +150,7 @@ class Service
             if (self::$container::class === $dependencyType) {
                 $args[] = self::$container;
             } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
+                /** @var class-string $dependencyType */
                 if (!self::$container->has($dependencyType)) {
                     if (class_exists($dependencyType)) {
                         $service = new Service($dependencyType);

@@ -17,6 +17,9 @@ class Container implements ContainerInterface
         Service::setContainer($this);
     }
 
+    /**
+     * @param class-string $class
+     */
     public function get(string $class): object
     {
         if (self::class === $class) {
@@ -66,6 +69,9 @@ class Container implements ContainerInterface
         return $tagServices;
     }
 
+    /**
+     * @param class-string $class
+     */
     public function has(string $class): bool
     {
         return isset($this->services[$class]);
