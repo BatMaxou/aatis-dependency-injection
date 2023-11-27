@@ -2,6 +2,7 @@
 
 namespace Aatis\DependencyInjection\Entity;
 
+use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
 
@@ -164,7 +165,44 @@ class Service
         return $this;
     }
 
+    public function isInstancied(): bool
+    {
+        return $this->instance ? true : false;
+    }
+
+    /**
+     * @return array{
+     *  class: class-string,
+     *  givenArgs: array<string, mixed>,
+     *  args: mixed[],
+     *  tags: string[],
+     *  interfaces: string[]
+     * }
+     */
+    public function toArray(): array
+    {
+        return [
+            'class' => $this->class,
+            'givenArgs' => $this->givenArgs,
+            'args' => $this->args,
+            'tags' => $this->tags,
+            'interfaces' => $this->interfaces,
+        ];
+    }
+
     private function instanciate(): void
+    {
+        if (!empty($args = $this->loadArgs())) {
+            $this->setArgs($args);
+        }
+
+        $this->instance = new ($this->class)(...$this->args);
+    }
+
+    /**
+     * @return mixed[]
+     */
+    private function loadArgs(): array
     {
         if (!self::$container) {
             throw new MissingContainerException('Container not set');
@@ -178,66 +216,69 @@ class Service
             } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
                 /** @var class-string $dependencyType */
                 if (interface_exists($dependencyType)) {
-                    if (isset($this->givenArgs[$varName])) {
-                        /** @var class-string $implementingClass */
-                        $implementingClass = $this->givenArgs[$varName];
-                        if (class_exists($implementingClass)) {
-                            if (!self::$container->has($implementingClass)) {
-                                $service = new Service($implementingClass);
-                                self::$container->set($implementingClass, $service);
-                                $service->instanciate();
-                            }
-
-                            $args[] = self::$container->get($implementingClass);
+                    $args[] = $this->pickServiceWithInterface($varName, $dependencyType);
+                } else {
+                    if (!self::$container->has($dependencyType)) {
+                        if (class_exists($dependencyType)) {
+                            $this->createDependencyService($dependencyType);
                         } else {
-                            throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
+                            throw new ClassNotFoundException(sprintf('Class %s not found', $dependencyType));
                         }
-                    } else {
-                        $services = self::$container->getByInterface($dependencyType);
-                        if (empty($services)) {
-                            throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $dependencyType));
-                        }
+                    }
 
-                        $args[] = $services[0]->getInstance();
-                    }
-                } elseif (!self::$container->has($dependencyType)) {
-                    if (class_exists($dependencyType)) {
-                        $service = new Service($dependencyType);
-                        self::$container->set($dependencyType, $service);
-                        $service->instanciate();
-                    } else {
-                        throw new ClassNotFoundException(sprintf('Class %s not found', $dependencyType));
-                    }
                     $args[] = self::$container->get($dependencyType);
                 }
             } else {
+                if (!isset($this->givenArgs[$varName])) {
+                    throw new ArgumentNotFoundException(sprintf('Missing argument %s for %s class', $varName, $this->class));
+                }
+
                 $args[] = $this->givenArgs[$varName];
             }
         }
 
-        if (!empty($args)) {
-            $this->setArgs($args);
-        }
-
-        $this->instance = new ($this->class)(...$this->args);
+        return $args;
     }
 
-    public function isInstancied(): bool
+    private function pickServiceWithInterface(string $varName, string $interfaceNamespace): object
     {
-        return $this->instance ? true : false;
+        if (!self::$container) {
+            throw new MissingContainerException('Container not set');
+        }
+
+        if (isset($this->givenArgs[$varName])) {
+            /** @var class-string $implementingClass */
+            $implementingClass = $this->givenArgs[$varName];
+            if (class_exists($implementingClass)) {
+                if (!self::$container->has($implementingClass)) {
+                    $this->createDependencyService($implementingClass);
+                }
+
+                return self::$container->get($implementingClass);
+            } else {
+                throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
+            }
+        } else {
+            $services = self::$container->getByInterface($interfaceNamespace);
+            if (empty($services)) {
+                throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $interfaceNamespace));
+            }
+
+            return $services[0]->getInstance();
+        }
     }
 
     /**
-     * @return array{
-     *  class: class-string,
-     *  args: mixed[]
-     * }
+     * @param class-string $namespace
      */
-    public function toArray(): array
+    private function createDependencyService(string $namespace): void
     {
-        return [
-            'class' => $this->class,
-            'args' => $this->args,
-        ];
+        if (!self::$container) {
+            throw new MissingContainerException('Container not set');
+        }
+
+        $service = new Service($namespace);
+        self::$container->set($namespace, $service);
+        $service->instanciate();
     }
 }
