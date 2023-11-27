@@ -92,9 +92,16 @@ class ContainerBuilder
             || trait_exists($namespace)
             || enum_exists($namespace)
             || !class_exists($namespace)
-            || (new \ReflectionClass($namespace))->isAbstract()
         ) {
             return;
+        } else {
+            $reflexion = new \ReflectionClass($namespace);
+            if (
+                $reflexion->isAbstract()
+                || $reflexion->implementsInterface('\Throwable')
+            ) {
+                return;
+            }
         }
 
         $service = new Service($namespace);
@@ -102,6 +109,12 @@ class ContainerBuilder
 
         if (!empty($tags)) {
             $service->setTags($tags);
+        }
+
+        $interfaces = array_values(class_implements($namespace));
+
+        if (!empty($interfaces)) {
+            $service->setInterfaces($interfaces);
         }
 
         if (isset($this->givenParams[$namespace])) {
