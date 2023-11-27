@@ -2,6 +2,9 @@
 
 namespace Aatis\DependencyInjection\Entity;
 
+use Aatis\DependencyInjection\Exception\ClassNotFoundException;
+use Aatis\DependencyInjection\Exception\MissingContainerException;
+
 class Service
 {
     private ?object $instance = null;
@@ -20,6 +23,11 @@ class Service
      * @var string[]
      */
     private array $tags = [];
+
+    /**
+     * @var string[]
+     */
+    private array $interfaces = [];
 
     private static ?Container $container = null;
 
@@ -51,6 +59,14 @@ class Service
     public function getTags(): array
     {
         return $this->tags;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getInterfaces(): array
+    {
+        return $this->interfaces;
     }
 
     public function getInstance(): object
@@ -131,6 +147,16 @@ class Service
         return $this;
     }
 
+    /**
+     * @param string[] $interfaces
+     */
+    public function setInterfaces(array $interfaces): static
+    {
+        $this->interfaces = $interfaces;
+
+        return $this;
+    }
+
     public function setInstance(object $instance): static
     {
         $this->instance = $instance;
@@ -141,7 +167,7 @@ class Service
     private function instanciate(): void
     {
         if (!self::$container) {
-            throw new \Exception('Container not set');
+            throw new MissingContainerException('Container not set');
         }
 
         $args = [];
@@ -151,16 +177,39 @@ class Service
                 $args[] = self::$container;
             } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
                 /** @var class-string $dependencyType */
-                if (!self::$container->has($dependencyType)) {
+                if (interface_exists($dependencyType)) {
+                    if (isset($this->givenArgs[$varName])) {
+                        /** @var class-string $implementingClass */
+                        $implementingClass = $this->givenArgs[$varName];
+                        if (class_exists($implementingClass)) {
+                            if (!self::$container->has($implementingClass)) {
+                                $service = new Service($implementingClass);
+                                self::$container->set($implementingClass, $service);
+                                $service->instanciate();
+                            }
+
+                            $args[] = self::$container->get($implementingClass);
+                        } else {
+                            throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
+                        }
+                    } else {
+                        $services = self::$container->getByInterface($dependencyType);
+                        if (empty($services)) {
+                            throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $dependencyType));
+                        }
+
+                        $args[] = $services[0]->getInstance();
+                    }
+                } elseif (!self::$container->has($dependencyType)) {
                     if (class_exists($dependencyType)) {
                         $service = new Service($dependencyType);
                         self::$container->set($dependencyType, $service);
                         $service->instanciate();
                     } else {
-                        throw new \Exception("Class $dependencyType not found");
+                        throw new ClassNotFoundException(sprintf('Class %s not found', $dependencyType));
                     }
+                    $args[] = self::$container->get($dependencyType);
                 }
-                $args[] = self::$container->get($dependencyType);
             } else {
                 $args[] = $this->givenArgs[$varName];
             }

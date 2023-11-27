@@ -27,7 +27,7 @@ class Container implements ContainerInterface
         }
 
         if (!isset($this->services[$class])) {
-            throw new ServiceNotFoundException('Service not found');
+            throw new ServiceNotFoundException(sprintf('Service %s not found', $class));
         }
 
         return $this->services[$class]->getInstance();
@@ -67,6 +67,42 @@ class Container implements ContainerInterface
         }
 
         return $tagServices;
+    }
+
+    /**
+     * @return Service[]
+     */
+    public function getByInterface(string $interface): array
+    {
+        $interfaceServices = [];
+
+        foreach ($this->services as $service) {
+            if (!in_array($interface, $service->getInterfaces())) {
+                continue;
+            }
+            $interfaceServices[] = $service;
+        }
+
+        return $interfaceServices;
+    }
+
+    /**
+     * @param string[] $interfaces
+     *
+     * @return Service[]
+     */
+    public function getByInterfaces(array $interfaces): array
+    {
+        $interfaceServices = [];
+
+        foreach ($this->services as $service) {
+            if (count(array_intersect($interfaces, $service->getInterfaces())) !== count($interfaces)) {
+                continue;
+            }
+            $interfaceServices[] = $service;
+        }
+
+        return $interfaceServices;
     }
 
     /**
