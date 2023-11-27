@@ -4,6 +4,7 @@ namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Entity\Service;
 use Aatis\DependencyInjection\Entity\Container;
+use Aatis\DependencyInjection\Exception\FileNotFoundException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -34,6 +35,9 @@ class ContainerBuilder
     private array $givenParams = [];
 
     private Container $container;
+
+    /** @var ComposerJsonConfig */
+    private array $composerJson;
 
     /**
      * @param array{
@@ -79,23 +83,20 @@ class ContainerBuilder
     private function register(string $filePath): void
     {
         $shortPath = $this->getShortPath($filePath);
+        $namespace = $this->transformToNamespace($filePath);
 
         if (
             !str_ends_with($shortPath, '.php')
             || in_array($shortPath, $this->excludePaths)
-            || str_ends_with($shortPath, 'Interface.php')
-        ) {
-            return;
-        }
-
-        $namespace = $this->transformToNamespace($filePath);
-
-        if (
-            !class_exists($namespace)
+            || interface_exists($namespace)
+            || trait_exists($namespace)
+            || enum_exists($namespace)
+            || !class_exists($namespace)
             || (new \ReflectionClass($namespace))->isAbstract()
         ) {
             return;
         }
+
         $service = new Service($namespace);
         $tags = $this->transformAbstractToTags($this->getAbstractClasses($namespace));
 
@@ -125,9 +126,7 @@ class ContainerBuilder
 
     private function transformToNamespace(string $filePath): string
     {
-        /** @var ComposerJsonConfig */
-        $composerJson = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
-        $autoloaderInfos = $composerJson['autoload']['psr-4'];
+        $autoloaderInfos = $this->composerJson['autoload']['psr-4'];
         $baseNamespace = array_key_first(array_filter($autoloaderInfos, fn ($value) => 'src/' === $value));
         $temp = str_replace($_ENV['DOCUMENT_ROOT'].'/../src/', $baseNamespace ?? 'App\\', $filePath);
         $temp = str_replace(DIRECTORY_SEPARATOR, '\\', $temp);
@@ -143,6 +142,14 @@ class ContainerBuilder
             $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml');
             $this->excludePaths = $config['excludes'] ?? [];
             $this->givenParams = $config['services'] ?? [];
+        }
+
+        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../composer.json')) {
+            /** @var ComposerJsonConfig */
+            $json = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
+            $this->composerJson = $json;
+        } else {
+            throw new FileNotFoundException('composer.json file not found');
         }
     }
 
