@@ -2,7 +2,7 @@
 
 namespace Aatis\DependencyInjection\Entity;
 
-use Psr\Container\ContainerInterface;
+use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
 
 class Container implements ContainerInterface

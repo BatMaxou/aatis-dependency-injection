@@ -5,6 +5,7 @@ namespace Aatis\DependencyInjection\Entity;
 use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
+use Aatis\DependencyInjection\Interface\ContainerInterface;
 
 class Service
 {
@@ -30,7 +31,9 @@ class Service
      */
     private array $interfaces = [];
 
-    private static ?Container $container = null;
+    private static ?ContainerInterface $container = null;
+
+    private static ?\ReflectionClass $containerReflection = null;
 
     /**
      * @param class-string $class
@@ -41,7 +44,7 @@ class Service
         $this->class = $class;
     }
 
-    public static function setContainer(Container $container): void
+    public static function setContainer(ContainerInterface $container): void
     {
         self::$container = $container;
     }
@@ -244,6 +247,14 @@ class Service
     {
         if (!self::$container) {
             throw new MissingContainerException('Container not set');
+        }
+
+        if (!self::$containerReflection) {
+            self::$containerReflection = new \ReflectionClass(self::$container);
+        }
+
+        if (self::$containerReflection->implementsInterface($interfaceNamespace)) {
+            return self::$container;
         }
 
         if (isset($this->givenArgs[$varName])) {
