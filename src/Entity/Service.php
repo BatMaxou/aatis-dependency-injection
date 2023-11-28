@@ -33,8 +33,9 @@ class Service
 
     private static ?ContainerInterface $container = null;
 
-    private static ?\ReflectionClass $containerReflection = null;
-
+    /**
+     * @var \ReflectionClass<ContainerInterface>|null
+     */
     private static ?\ReflectionClass $containerReflection = null;
 
     /**
@@ -267,7 +268,13 @@ class Service
                     $this->createDependencyService($implementingClass);
                 }
 
-                return self::$container->get($implementingClass);
+                $service = self::$container->get($implementingClass);
+
+                if (!$service || !$service instanceof $interfaceNamespace) {
+                    throw new \LogicException(sprintf('Container does not return the wanted object, %s return', get_debug_type($service)));
+                }
+
+                return $service;
             } else {
                 throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
             }
