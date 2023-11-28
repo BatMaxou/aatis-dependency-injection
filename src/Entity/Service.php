@@ -42,9 +42,8 @@ class Service
      * @param class-string $class
      */
     public function __construct(
-        private string $class,
+        private readonly string $class,
     ) {
-        $this->class = $class;
     }
 
     public static function setContainer(ContainerInterface $container): void
@@ -199,7 +198,7 @@ class Service
     private function instanciate(): void
     {
         if (!empty($args = $this->loadArgs())) {
-            $this->setArgs($args);
+            $this->args = $args;
         }
 
         $this->instance = new ($this->class)(...$this->args);
