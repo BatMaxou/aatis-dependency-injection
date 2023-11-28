@@ -1,6 +1,6 @@
 <?php
 
-namespace Aatis\DependencyInjection\Interface;
+namespace Aatis\DependencyInjection\Interface\Exception;
 
 interface ServiceExceptionInterface extends \Throwable
 {
