@@ -35,6 +35,8 @@ class Service
 
     private static ?\ReflectionClass $containerReflection = null;
 
+    private static ?\ReflectionClass $containerReflection = null;
+
     /**
      * @param class-string $class
      */
