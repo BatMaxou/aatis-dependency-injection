@@ -2,13 +2,13 @@
 
 namespace Aatis\DependencyInjection\Entity;
 
-use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
-use Aatis\DependencyInjection\Exception\ClassNotFoundException;
-use Aatis\DependencyInjection\Exception\MissingContainerException;
-use Aatis\DependencyInjection\Interface\ContainerInterface;
-
 class Service
 {
+    /**
+     * @var array<string, class-string|string|null>|null
+     */
+    private ?array $dependencies = null;
+
     private ?object $instance = null;
 
     /**
@@ -31,13 +31,6 @@ class Service
      */
     private array $interfaces = [];
 
-    private static ?ContainerInterface $container = null;
-
-    /**
-     * @var \ReflectionClass<ContainerInterface>|null
-     */
-    private static ?\ReflectionClass $containerReflection = null;
-
     /**
      * @param class-string $class
      */
@@ -46,17 +39,48 @@ class Service
     ) {
     }
 
-    public static function setContainer(ContainerInterface $container): void
-    {
-        self::$container = $container;
-    }
-
     /**
      * @return class-string
      */
     public function getClass(): string
     {
         return $this->class;
+    }
+
+    /**
+     * @return array<string, class-string|string|null>
+     */
+    public function getDependencies(): array
+    {
+        if (null === $this->dependencies) {
+            $this->loadDependencies();
+        }
+
+        /** @var array<string, class-string|string|null> */
+        $dependencies = $this->dependencies;
+
+        return $dependencies;
+    }
+
+    public function getInstance(): ?object
+    {
+        return $this->instance;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getGivenArgs(): array
+    {
+        return $this->givenArgs;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getArgs(): array
+    {
+        return $this->args;
     }
 
     /**
@@ -75,52 +99,11 @@ class Service
         return $this->interfaces;
     }
 
-    public function getInstance(): object
+    public function setInstance(object $instance): static
     {
-        if (self::$container && $this->class === self::$container::class) {
-            return self::$container;
-        }
+        $this->instance = $instance;
 
-        if (!$this->instance) {
-            $this->instanciate();
-        }
-
-        /**
-         * @var object $instance
-         */
-        $instance = $this->instance;
-
-        return $instance;
-    }
-
-    /**
-     * @return array<string, class-string|string|null>
-     */
-    public function getDependencies(): array
-    {
-        $dependencies = [];
-        $reflexion = new \ReflectionClass($this->class);
-        $constructor = $reflexion->getConstructor();
-
-        if (!$constructor) {
-            return $dependencies;
-        }
-
-        $parameters = $constructor->getParameters();
-
-        foreach ($parameters as $parameter) {
-            $type = $parameter->getType();
-
-            if (!$type || !($type instanceof \ReflectionNamedType)) {
-                $dependencies[$parameter->getName()] = null;
-            } elseif (str_contains($type->getName(), '\\')) {
-                $dependencies[$parameter->getName()] = $type->getName();
-            } else {
-                $dependencies[$parameter->getName()] = $type->getName();
-            }
-        }
-
-        return $dependencies;
+        return $this;
     }
 
     /**
@@ -163,18 +146,6 @@ class Service
         return $this;
     }
 
-    public function setInstance(object $instance): static
-    {
-        $this->instance = $instance;
-
-        return $this;
-    }
-
-    public function isInstancied(): bool
-    {
-        return $this->instance ? true : false;
-    }
-
     /**
      * @return array{
      *  class: class-string,
@@ -188,6 +159,7 @@ class Service
     {
         return [
             'class' => $this->class,
+            'dependencies' => $this->dependencies,
             'givenArgs' => $this->givenArgs,
             'args' => $this->args,
             'tags' => $this->tags,
@@ -195,109 +167,30 @@ class Service
         ];
     }
 
-    private function instanciate(): void
+    private function loadDependencies(): void
     {
-        if (!empty($args = $this->loadArgs())) {
-            $this->args = $args;
+        $dependencies = [];
+        $reflexion = new \ReflectionClass($this->class);
+        $constructor = $reflexion->getConstructor();
+
+        if (!$constructor) {
+            return;
         }
 
-        $this->instance = new ($this->class)(...$this->args);
-    }
+        $parameters = $constructor->getParameters();
 
-    /**
-     * @return mixed[]
-     */
-    private function loadArgs(): array
-    {
-        if (!self::$container) {
-            throw new MissingContainerException('Container not set');
-        }
+        foreach ($parameters as $parameter) {
+            $type = $parameter->getType();
 
-        $args = [];
-
-        foreach ($this->getDependencies() as $varName => $dependencyType) {
-            if (self::$container::class === $dependencyType) {
-                $args[] = self::$container;
-            } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
-                /** @var class-string $dependencyType */
-                if (interface_exists($dependencyType)) {
-                    $args[] = $this->pickServiceWithInterface($varName, $dependencyType);
-                } else {
-                    if (!self::$container->has($dependencyType)) {
-                        if (class_exists($dependencyType)) {
-                            $this->createDependencyService($dependencyType);
-                        } else {
-                            throw new ClassNotFoundException(sprintf('Class %s not found', $dependencyType));
-                        }
-                    }
-
-                    $args[] = self::$container->get($dependencyType);
-                }
+            if (!$type || !($type instanceof \ReflectionNamedType)) {
+                $dependencies[$parameter->getName()] = null;
+            } elseif (str_contains($type->getName(), '\\')) {
+                $dependencies[$parameter->getName()] = $type->getName();
             } else {
-                if (!isset($this->givenArgs[$varName])) {
-                    throw new ArgumentNotFoundException(sprintf('Missing argument %s for %s class', $varName, $this->class));
-                }
-
-                $args[] = $this->givenArgs[$varName];
+                $dependencies[$parameter->getName()] = $type->getName();
             }
         }
 
-        return $args;
-    }
-
-    private function pickServiceWithInterface(string $varName, string $interfaceNamespace): object
-    {
-        if (!self::$container) {
-            throw new MissingContainerException('Container not set');
-        }
-
-        if (!self::$containerReflection) {
-            self::$containerReflection = new \ReflectionClass(self::$container);
-        }
-
-        if (self::$containerReflection->implementsInterface($interfaceNamespace)) {
-            return self::$container;
-        }
-
-        if (isset($this->givenArgs[$varName])) {
-            /** @var class-string $implementingClass */
-            $implementingClass = $this->givenArgs[$varName];
-            if (class_exists($implementingClass)) {
-                if (!self::$container->has($implementingClass)) {
-                    $this->createDependencyService($implementingClass);
-                }
-
-                $service = self::$container->get($implementingClass);
-
-                if (!$service || !$service instanceof $interfaceNamespace) {
-                    throw new \LogicException(sprintf('Container does not return the wanted object, %s return', get_debug_type($service)));
-                }
-
-                return $service;
-            } else {
-                throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
-            }
-        } else {
-            $services = self::$container->getByInterface($interfaceNamespace);
-            if (empty($services)) {
-                throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $interfaceNamespace));
-            }
-
-            return $services[0]->getInstance();
-        }
-    }
-
-    /**
-     * @param class-string $namespace
-     */
-    private function createDependencyService(string $namespace): void
-    {
-        if (!self::$container) {
-            throw new MissingContainerException('Container not set');
-        }
-
-        $service = new Service($namespace);
-        self::$container->set($namespace, $service);
-        $service->instanciate();
+        $this->dependencies = $dependencies;
     }
 }

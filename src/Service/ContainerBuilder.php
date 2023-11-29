@@ -2,19 +2,16 @@
 
 namespace Aatis\DependencyInjection\Service;
 
-use Aatis\DependencyInjection\Entity\Service;
-use Aatis\DependencyInjection\Entity\Container;
-use Aatis\DependencyInjection\Exception\FileNotFoundException;
 use Symfony\Component\Yaml\Yaml;
+use Aatis\DependencyInjection\Exception\FileNotFoundException;
 
 /**
- * @phpstan-type ServiceParams array<string, array{
- *  arguments?: array<mixed>,
- *  environment?: array<string>
- * }>
  * @phpstan-type YamlConfig array{
  *  excludes?: array<int, string>,
- *  services?: ServiceParams,
+ *  services?: array<string, array{
+ *      arguments?: array<mixed>,
+ *      environment?: array<string>
+ *  }>
  * }
  * @phpstan-type ComposerJsonConfig array{
  *  autoload: array{
@@ -30,13 +27,20 @@ class ContainerBuilder
     private array $excludePaths = [];
 
     /**
-     * @var ServiceParams
+     * @var array<string, array{
+     *  arguments?: array<mixed>,
+     *  environment?: array<string>
+     * }>
      */
     private array $givenParams = [];
 
     private Container $container;
 
-    /** @var ComposerJsonConfig */
+    private ServiceFactory $serviceFactory;
+
+    /**
+     * @var ComposerJsonConfig
+     */
     private array $composerJson;
 
     /**
@@ -53,10 +57,21 @@ class ContainerBuilder
 
     public function build(): Container
     {
-        $this->container = new Container();
+        $this->initializeContainer();
         $this->registerFolder($this->sourcePath);
 
         return $this->container;
+    }
+
+    private function initializeContainer(): void
+    {
+        $this->serviceFactory = new ServiceFactory($this->givenParams);
+        $serviceInstanciator = new ServiceInstanciator($this->serviceFactory);
+        $this->container = new Container($serviceInstanciator);
+
+        $this->container->set(Container::class, $this->serviceFactory->create(Container::class)->setInstance($this->container));
+        $this->container->set(ServiceFactory::class, $this->serviceFactory->create(ServiceFactory::class)->setInstance($this->serviceFactory));
+        $this->container->set(ServiceInstanciator::class, $this->serviceFactory->create(ServiceInstanciator::class)->setInstance($serviceInstanciator));
     }
 
     private function registerFolder(string $folderPath): void
@@ -104,31 +119,15 @@ class ContainerBuilder
             }
         }
 
-        $service = new Service($namespace);
-        $tags = $this->transformAbstractToTags($this->getAbstractClasses($namespace));
-
-        if (!empty($tags)) {
-            $service->setTags($tags);
+        if (
+            isset($this->givenParams[$namespace])
+            && isset($this->givenParams[$namespace]['environment'])
+            && !in_array($this->ctx['env'], $this->givenParams[$namespace]['environment'])
+        ) {
+            return;
         }
 
-        $interfaces = array_values(class_implements($namespace));
-
-        if (!empty($interfaces)) {
-            $service->setInterfaces($interfaces);
-        }
-
-        if (isset($this->givenParams[$namespace])) {
-            if (
-                isset($this->givenParams[$namespace]['environment'])
-                && !in_array($this->ctx['env'], $this->givenParams[$namespace]['environment'])
-            ) {
-                return;
-            }
-
-            if (isset($this->givenParams[$namespace]['arguments'])) {
-                $service->setGivenArgs($this->givenParams[$namespace]['arguments']);
-            }
-        }
+        $service = $this->serviceFactory->create($namespace);
         $this->container->set($namespace, $service);
     }
 
@@ -164,38 +163,5 @@ class ContainerBuilder
         } else {
             throw new FileNotFoundException('composer.json file not found');
         }
-    }
-
-    /**
-     * @return class-string[]
-     */
-    private function getAbstractClasses(string $namespace): iterable
-    {
-        while ($parentClass = get_parent_class($namespace)) {
-            if ((new \ReflectionClass($parentClass))->isAbstract()) {
-                yield $parentClass;
-            }
-            $namespace = $parentClass;
-        }
-    }
-
-    /**
-     * @param class-string[] $classes
-     *
-     * @return string[]
-     */
-    private function transformAbstractToTags(iterable $classes): array
-    {
-        $tags = [];
-        foreach ($classes as $class) {
-            $temp = str_split(str_replace('Abstract', '', (new \ReflectionClass($class))->getShortName()));
-            $tag = implode(array_map(
-                fn ($letter) => ctype_upper($letter) ? '-'.strtolower($letter) : $letter,
-                $temp,
-            ));
-            $tags[] = substr($tag, 1);
-        }
-
-        return $tags;
     }
 }
