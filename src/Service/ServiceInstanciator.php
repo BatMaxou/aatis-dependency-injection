@@ -13,15 +13,9 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
 {
     private ?ContainerInterface $container = null;
 
-    /**
-     * @var \ReflectionClass<ContainerInterface>|null
-     */
-    private ?\ReflectionClass $containerReflection = null;
-
     public function setContainer(ContainerInterface $container): void
     {
         $this->container = $container;
-        $this->containerReflection = new \ReflectionClass($container);
     }
 
     public function instanciate(Service $service): object
@@ -96,12 +90,8 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
     {
         $container = $this->container;
 
-        if (!$container || !$this->containerReflection) {
+        if (!$container) {
             throw new MissingContainerException('Container not set');
-        }
-
-        if ($this->containerReflection->implementsInterface($interfaceNamespace)) {
-            return $container;
         }
 
         if (isset($givenArgs[$varName])) {
