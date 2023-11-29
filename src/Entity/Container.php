@@ -4,6 +4,7 @@ namespace Aatis\DependencyInjection\Entity;
 
 use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
+use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 
 class Container implements ContainerInterface
 {
@@ -12,9 +13,12 @@ class Container implements ContainerInterface
      */
     private array $services = [];
 
-    public function __construct()
+    private ServiceInstanciatorInterface $serviceInstanciator;
+
+    public function __construct(ServiceInstanciatorInterface $serviceInstanciator)
     {
-        Service::setContainer($this);
+        $serviceInstanciator->setContainer($this);
+        $this->serviceInstanciator = $serviceInstanciator;
     }
 
     /**
@@ -30,7 +34,9 @@ class Container implements ContainerInterface
             throw new ServiceNotFoundException(sprintf('Service %s not found', $class));
         }
 
-        return $this->services[$class]->getInstance();
+        $service = $this->services[$class];
+
+        return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
     }
 
     /**
@@ -105,16 +111,16 @@ class Container implements ContainerInterface
         return $interfaceServices;
     }
 
+    public function set(string $class, Service $service): void
+    {
+        $this->services[$class] = $service;
+    }
+
     /**
      * @param class-string $class
      */
     public function has(string $class): bool
     {
         return isset($this->services[$class]);
-    }
-
-    public function set(string $class, Service $service): void
-    {
-        $this->services[$class] = $service;
     }
 }

@@ -2,6 +2,6 @@
 
 namespace Aatis\DependencyInjection\Interface\Exception;
 
-interface ServiceExceptionInterface extends \Throwable
+interface ServiceInstanciatorExceptionInterface extends \Throwable
 {
 }

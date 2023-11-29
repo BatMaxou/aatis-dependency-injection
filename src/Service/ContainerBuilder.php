@@ -53,7 +53,7 @@ class ContainerBuilder
 
     public function build(): Container
     {
-        $this->container = new Container();
+        $this->container = new Container(new ServiceInstanciator());
         $this->registerFolder($this->sourcePath);
 
         return $this->container;

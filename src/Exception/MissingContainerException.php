@@ -2,6 +2,6 @@
 
 namespace Aatis\DependencyInjection\Exception;
 
-class MissingContainerException extends ServiceException
+class MissingContainerException extends ServiceInstanciatorException
 {
 }
