@@ -7,11 +7,19 @@ use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
+use Aatis\DependencyInjection\Interface\ServiceFactoryInterface;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 
 class ServiceInstanciator implements ServiceInstanciatorInterface
 {
+    private ServiceFactoryInterface $serviceFactory;
+
     private ?ContainerInterface $container = null;
+
+    public function __construct(ServiceFactoryInterface $serviceFactory)
+    {
+        $this->serviceFactory = $serviceFactory;
+    }
 
     public function setContainer(ContainerInterface $container): void
     {
@@ -144,7 +152,7 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
             throw new MissingContainerException('Container not set');
         }
 
-        $service = new Service($namespace);
+        $service = $this->serviceFactory->create($namespace);
         $this->container->set($namespace, $service);
         $this->instanciate($service);
     }

@@ -20,9 +20,6 @@ class Container implements ContainerInterface
     {
         $serviceInstanciator->setContainer($this);
         $this->serviceInstanciator = $serviceInstanciator;
-        $service = new Service(self::class);
-        $service->setInstance($this);
-        $this->services[self::class] = $service;
     }
 
     /**
