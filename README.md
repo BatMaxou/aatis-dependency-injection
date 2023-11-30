@@ -26,9 +26,9 @@ Create the conatiner builder with the context and the path to your PHP sources f
 
 ### Exclude files
 
-In config/services.yaml file :
-
 ```yaml
+# In config/services.yaml file :
+
 exclude_paths:
   - '/Folder'
   - '/OtherFolder/file.txt'
@@ -41,9 +41,9 @@ You can manage in which environment your service must be loaded and the argument
 
 You can also precise the class to use for the dependency when it is an interface. 
 
-In config/services.yaml file :
-
 ```yaml
+# In config/services.yaml file :
+
 services:
     Namespace\To\The\Service:
         environment:
@@ -66,25 +66,20 @@ If several services implement the interface, the DI will pick the first one foun
 
 If you want to use a specific class, don't forget to declare it into the config/services.yaml file.
 
-In config/services.yaml file :
-
 ```yaml
+# In config/services.yaml file :
+
 services:
     Namespace\To\The\Service:
         arguments:
             variable_name_into_the_constructor: 'service_implementing_the_interface'
 ```
 
-Otherwise if your want to use a specific class of the vendor, precise the class of it in the config/services.yaml file and declare it.
-
-In config/services.yaml file :
+Otherwise if your want to use a specific class of the vendor, do the prevous step and precise the class of it to the target service.
 
 ```yaml
+# In config/services.yaml file :
+
 include_services:
     - 'Namespace\To\The\Vendor\Service\Implementing\The\Interface'
-
-services:
-    Namespace\To\The\Service:
-        arguments:
-            variable_name_into_the_constructor: 'service_implementing_the_interface'
 ```
