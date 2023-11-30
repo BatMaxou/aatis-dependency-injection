@@ -2,12 +2,14 @@
 
 namespace Aatis\DependencyInjection\Service;
 
+use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Symfony\Component\Yaml\Yaml;
 use Aatis\DependencyInjection\Exception\FileNotFoundException;
 
 /**
  * @phpstan-type YamlConfig array{
- *  excludes?: array<int, string>,
+ *  include_services?: array<int, class-string>,
+ *  exclude_paths?: array<int, string>,
  *  services?: array<string, array{
  *      arguments?: array<mixed>,
  *      environment?: array<string>
@@ -21,6 +23,11 @@ use Aatis\DependencyInjection\Exception\FileNotFoundException;
  */
 class ContainerBuilder
 {
+    /**
+     * @var array<int, class-string>
+     */
+    private array $includeServices = [];
+
     /**
      * @var array<int, string>
      */
@@ -58,6 +65,11 @@ class ContainerBuilder
     public function build(): Container
     {
         $this->initializeContainer();
+
+        if (!empty($this->includeServices)) {
+            $this->registerExtraServices();
+        }
+
         $this->registerFolder($this->sourcePath);
 
         return $this->container;
@@ -74,6 +86,22 @@ class ContainerBuilder
         $this->container->set(ServiceInstanciator::class, $this->serviceFactory->create(ServiceInstanciator::class)->setInstance($serviceInstanciator));
     }
 
+    private function registerExtraServices(): void
+    {
+        foreach ($this->includeServices as $namespace) {
+            if (
+                interface_exists($namespace)
+                || trait_exists($namespace)
+                || enum_exists($namespace)
+                || !class_exists($namespace)
+            ) {
+                throw new ClassNotFoundException(sprintf('Class %s not found', $namespace));
+            }
+
+            $this->container->set($namespace, $this->serviceFactory->create($namespace));
+        }
+    }
+
     private function registerFolder(string $folderPath): void
     {
         if (in_array($this->getShortPath($folderPath), $this->excludePaths)) {
@@ -83,7 +111,7 @@ class ContainerBuilder
         $folderContent = array_diff(scandir($folderPath) ?: [], ['..', '.']);
 
         foreach ($folderContent as $element) {
-            $path = $folderPath.'/'.$element;
+            $path = $folderPath . '/' . $element;
 
             if (is_dir($path)) {
                 $this->registerFolder($path);
@@ -133,14 +161,14 @@ class ContainerBuilder
 
     private function getShortPath(string $path): string
     {
-        return str_replace($_ENV['DOCUMENT_ROOT'].'/../src', '', $path);
+        return str_replace($_ENV['DOCUMENT_ROOT'] . '/../src', '', $path);
     }
 
     private function transformToNamespace(string $filePath): string
     {
         $autoloaderInfos = $this->composerJson['autoload']['psr-4'];
         $baseNamespace = array_key_first(array_filter($autoloaderInfos, fn ($value) => 'src/' === $value));
-        $temp = str_replace($_ENV['DOCUMENT_ROOT'].'/../src/', $baseNamespace ?? 'App\\', $filePath);
+        $temp = str_replace($_ENV['DOCUMENT_ROOT'] . '/../src/', $baseNamespace ?? 'App\\', $filePath);
         $temp = str_replace(DIRECTORY_SEPARATOR, '\\', $temp);
         $temp = str_replace('.php', '', $temp);
 
@@ -149,16 +177,17 @@ class ContainerBuilder
 
     private function getConfig(): void
     {
-        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml')) {
+        if (file_exists($_ENV['DOCUMENT_ROOT'] . '/../config/services.yaml')) {
             /** @var YamlConfig */
-            $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml');
-            $this->excludePaths = $config['excludes'] ?? [];
+            $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'] . '/../config/services.yaml');
+            $this->includeServices = $config['include_services'] ?? [];
+            $this->excludePaths = $config['exclude_paths'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
 
-        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../composer.json')) {
+        if (file_exists($_ENV['DOCUMENT_ROOT'] . '/../composer.json')) {
             /** @var ComposerJsonConfig */
-            $json = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
+            $json = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'] . '/../composer.json') ?: '', true);
             $this->composerJson = $json;
         } else {
             throw new FileNotFoundException('composer.json file not found');
