@@ -14,7 +14,7 @@ Set your context
 
 ```php
 $ctx = [
-    'env' => 'your_app_environment',
+    'env' => 'app_environment',
 ]
 ```
 
@@ -29,7 +29,7 @@ Create the conatiner builder with the context and the path to your PHP sources f
 In config/services.yaml file :
 
 ```yaml
-excludes:
+exclude_paths:
   - '/Folder'
   - '/OtherFolder/file.txt'
   - <...>
@@ -45,13 +45,13 @@ In config/services.yaml file :
 
 ```yaml
 services:
-    Namespace\To\Your\Service:
+    Namespace\To\The\Service:
         environment:
             - 'env_name1'
             - 'env_name2'
             - <...>
         arguments:
-            variable_name_into_the_constructor: 'your_value'
+            variable_name_into_the_constructor: 'it_value'
 ```
 
 *environment is optional*
@@ -64,13 +64,27 @@ When an interface is requested into the constructor of a service, the DI will tr
 
 If several services implement the interface, the DI will pick the first one found.
 
-Otherwise, if you want to use a specific class or a class of your vendor, don't forget to declare it into the config/services.yaml file.
+If you want to use a specific class, don't forget to declare it into the config/services.yaml file.
 
 In config/services.yaml file :
 
 ```yaml
 services:
-    Namespace\To\Your\Service:
+    Namespace\To\The\Service:
         arguments:
-            variable_name_into_the_constructor: 'your_class_implementing_the_interface'
+            variable_name_into_the_constructor: 'service_implementing_the_interface'
+```
+
+Otherwise if your want to use a specific class of the vendor, precise the class of it in the config/services.yaml file and declare it.
+
+In config/services.yaml file :
+
+```yaml
+include_services:
+    - 'Namespace\To\The\Vendor\Service\Implementing\The\Interface'
+
+services:
+    Namespace\To\The\Service:
+        arguments:
+            variable_name_into_the_constructor: 'service_implementing_the_interface'
 ```
