@@ -2,12 +2,14 @@
 
 namespace Aatis\DependencyInjection\Service;
 
+use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Symfony\Component\Yaml\Yaml;
 use Aatis\DependencyInjection\Exception\FileNotFoundException;
 
 /**
  * @phpstan-type YamlConfig array{
- *  excludes?: array<int, string>,
+ *  include_services?: array<int, class-string>,
+ *  exclude_paths?: array<int, string>,
  *  services?: array<string, array{
  *      arguments?: array<mixed>,
  *      environment?: array<string>
@@ -21,6 +23,11 @@ use Aatis\DependencyInjection\Exception\FileNotFoundException;
  */
 class ContainerBuilder
 {
+    /**
+     * @var array<int, class-string>
+     */
+    private array $includeServices = [];
+
     /**
      * @var array<int, string>
      */
@@ -58,6 +65,11 @@ class ContainerBuilder
     public function build(): Container
     {
         $this->initializeContainer();
+
+        if (!empty($this->includeServices)) {
+            $this->registerExtraServices();
+        }
+
         $this->registerFolder($this->sourcePath);
 
         return $this->container;
@@ -72,6 +84,22 @@ class ContainerBuilder
         $this->container->set(Container::class, $this->serviceFactory->create(Container::class)->setInstance($this->container));
         $this->container->set(ServiceFactory::class, $this->serviceFactory->create(ServiceFactory::class)->setInstance($this->serviceFactory));
         $this->container->set(ServiceInstanciator::class, $this->serviceFactory->create(ServiceInstanciator::class)->setInstance($serviceInstanciator));
+    }
+
+    private function registerExtraServices(): void
+    {
+        foreach ($this->includeServices as $namespace) {
+            if (
+                interface_exists($namespace)
+                || trait_exists($namespace)
+                || enum_exists($namespace)
+                || !class_exists($namespace)
+            ) {
+                throw new ClassNotFoundException(sprintf('Class %s not found', $namespace));
+            }
+
+            $this->container->set($namespace, $this->serviceFactory->create($namespace));
+        }
     }
 
     private function registerFolder(string $folderPath): void
@@ -152,7 +180,8 @@ class ContainerBuilder
         if (file_exists($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml')) {
             /** @var YamlConfig */
             $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml');
-            $this->excludePaths = $config['excludes'] ?? [];
+            $this->includeServices = $config['include_services'] ?? [];
+            $this->excludePaths = $config['exclude_paths'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
 

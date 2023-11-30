@@ -2,6 +2,6 @@
 
 namespace Aatis\DependencyInjection\Exception;
 
-class ClassNotFoundException extends ServiceInstanciatorException
+class ClassNotFoundException extends \Exception
 {
 }
