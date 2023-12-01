@@ -39,7 +39,9 @@ exclude_paths:
 
 You can manage in which environment your service must be loaded and the arguments to pass to the constructor.
 
-You can also precise the class to use for the dependency when it is an interface. 
+You can also precise the class to use for the dependency when it is an interface.
+
+Finally, you can give extra tags to any service (which you can get with **$container->getByTag()**).
 
 ```yaml
 # In config/services.yaml file :
@@ -52,6 +54,10 @@ services:
             - <...>
         arguments:
             variable_name_into_the_constructor: 'it_value'
+        tags:
+            - 'tag_name1'
+            - 'tag_name2'
+            - <...>
 ```
 
 *environment is optional*

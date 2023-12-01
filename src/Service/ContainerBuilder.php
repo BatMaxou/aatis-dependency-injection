@@ -11,8 +11,9 @@ use Aatis\DependencyInjection\Exception\FileNotFoundException;
  *  include_services?: array<int, class-string>,
  *  exclude_paths?: array<int, string>,
  *  services?: array<string, array{
+ *      environment?: array<string>,
  *      arguments?: array<mixed>,
- *      environment?: array<string>
+ *      tags?: array<string>
  *  }>
  * }
  * @phpstan-type ComposerJsonConfig array{
@@ -35,8 +36,9 @@ class ContainerBuilder
 
     /**
      * @var array<string, array{
+     *  environment?: array<string>,
      *  arguments?: array<mixed>,
-     *  environment?: array<string>
+     *  tags?: array<string>
      * }>
      */
     private array $givenParams = [];
