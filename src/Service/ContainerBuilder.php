@@ -91,13 +91,12 @@ class ContainerBuilder
     private function registerExtraServices(): void
     {
         foreach ($this->includeServices as $namespace) {
-            if (
-                interface_exists($namespace)
-                || trait_exists($namespace)
-                || enum_exists($namespace)
-                || !class_exists($namespace)
-            ) {
-                throw new ClassNotFoundException(sprintf('Class %s not found', $namespace));
+            if (!$this->isValidService($namespace)) {
+                throw new ClassNotFoundException($namespace);
+            }
+
+            if (!$this->isEnvValid($namespace)) {
+                continue;
             }
 
             $this->container->set($namespace, $this->serviceFactory->create($namespace));
@@ -131,32 +130,13 @@ class ContainerBuilder
         $namespace = $this->transformToNamespace($filePath);
 
         if (
-            !str_ends_with($shortPath, '.php')
-            || in_array($shortPath, $this->excludePaths)
-            || interface_exists($namespace)
-            || trait_exists($namespace)
-            || enum_exists($namespace)
-            || !class_exists($namespace)
-        ) {
-            return;
-        } else {
-            $reflexion = new \ReflectionClass($namespace);
-            if (
-                $reflexion->isAbstract()
-                || $reflexion->implementsInterface('\Throwable')
-            ) {
-                return;
-            }
-        }
-
-        if (
-            isset($this->givenParams[$namespace])
-            && isset($this->givenParams[$namespace]['environment'])
-            && !in_array($this->ctx['env'], $this->givenParams[$namespace]['environment'])
+            !$this->isValidService($namespace, $shortPath)
+            || !$this->isEnvValid($namespace)
         ) {
             return;
         }
 
+        /** @var class-string $namespace */
         $service = $this->serviceFactory->create($namespace);
         $this->container->set($namespace, $service);
     }
@@ -175,6 +155,51 @@ class ContainerBuilder
         $temp = str_replace('.php', '', $temp);
 
         return $temp;
+    }
+
+    private function isValidService(string $namespace, ?string $shortPath = null): bool
+    {
+        if (
+            isset($shortPath)
+            && (
+                !str_ends_with($shortPath, '.php')
+                || in_array($shortPath, $this->excludePaths)
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            interface_exists($namespace)
+            || trait_exists($namespace)
+            || enum_exists($namespace)
+            || !class_exists($namespace)
+        ) {
+            return false;
+        } else {
+            $reflexion = new \ReflectionClass($namespace);
+            if (
+                $reflexion->isAbstract()
+                || $reflexion->implementsInterface('\Throwable')
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isEnvValid(string $namespace): bool
+    {
+        if (
+            isset($this->givenParams[$namespace])
+            && isset($this->givenParams[$namespace]['environment'])
+            && !in_array($this->ctx['env'], $this->givenParams[$namespace]['environment'])
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     private function getConfig(): void
