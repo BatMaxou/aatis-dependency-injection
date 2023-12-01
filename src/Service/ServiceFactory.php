@@ -9,8 +9,9 @@ class ServiceFactory implements ServiceFactoryInterface
 {
     /**
      * @param array<string, array{
+     *  environment?: array<string>,
      *  arguments?: array<mixed>,
-     *  environment?: array<string>
+     *  tags?: array<string>
      * }> $givenParams
      */
     public function __construct(private readonly array $givenParams)
@@ -24,6 +25,13 @@ class ServiceFactory implements ServiceFactoryInterface
     {
         $service = new Service($namespace);
         $tags = $this->transformAbstractToTags($this->getAbstractClasses($namespace));
+
+        if (
+            isset($this->givenParams[$namespace])
+            && isset($this->givenParams[$namespace]['tags'])
+        ) {
+            $tags = array_merge($tags, $this->givenParams[$namespace]['tags']);
+        }
 
         if (!empty($tags)) {
             $service->setTags($tags);
