@@ -2,10 +2,17 @@
 
 namespace Aatis\DependencyInjection\Entity;
 
+/**
+ * @phpstan-type ServiceDependencies array<string, array{
+ *  type: class-string|string|null,
+ *  nullable: bool,
+ *  default: mixed
+ * }>
+ */
 class Service
 {
     /**
-     * @var array<string, class-string|string|null>|null
+     * @var ServiceDependencies|null
      */
     private ?array $dependencies = null;
 
@@ -48,7 +55,7 @@ class Service
     }
 
     /**
-     * @return array<string, class-string|string|null>
+     * @return ServiceDependencies
      */
     public function getDependencies(): array
     {
@@ -56,7 +63,7 @@ class Service
             $this->loadDependencies();
         }
 
-        /** @var array<string, class-string|string|null> */
+        /** @var ServiceDependencies */
         $dependencies = $this->dependencies;
 
         return $dependencies;
@@ -149,6 +156,7 @@ class Service
     /**
      * @return array{
      *  class: class-string,
+     *  dependencies: ServiceDependencies|null,
      *  givenArgs: array<string, mixed>,
      *  args: mixed[],
      *  tags: string[],
@@ -183,14 +191,22 @@ class Service
             $type = $parameter->getType();
 
             if (!$type || !($type instanceof \ReflectionNamedType)) {
-                $dependencies[$parameter->getName()] = null;
-            } elseif (str_contains($type->getName(), '\\')) {
-                $dependencies[$parameter->getName()] = $type->getName();
+                throw new \LogicException('Type don\'t have a name');
+            }
+
+            $infos = [
+                'type' => $type->getName(),
+                'nullable' => $parameter->allowsNull(),
+                'default' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
+            ];
+
+            if (str_contains($type->getName(), '\\')) {
+                $dependencies[$parameter->getName()] = $infos;
             } else {
                 if (str_starts_with($parameter->getName(), '_')) {
-                    $dependencies['APP'.strtoupper($parameter->getName())] = null;
+                    $dependencies['APP'.strtoupper($parameter->getName())] = $infos;
                 } else {
-                    $dependencies[$parameter->getName()] = $type->getName();
+                    $dependencies[$parameter->getName()] = $infos;
                 }
             }
         }

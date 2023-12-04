@@ -4,7 +4,6 @@ namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Entity\Service;
 use Aatis\DependencyInjection\Exception\DataTypeException;
-use Aatis\DependencyInjection\Exception\EnvVariableNotFoundException;
 use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
@@ -32,7 +31,7 @@ class Container implements ContainerInterface
     public function get(string $id): mixed
     {
         if (str_starts_with($id, 'APP_')) {
-            return $this->env[$id] ?? throw new EnvVariableNotFoundException(sprintf('Env variable %s not found', $id));
+            return $this->env[$id] ?? null;
         }
 
         if (isset($this->services[$id])) {
