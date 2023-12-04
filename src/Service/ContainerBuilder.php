@@ -24,6 +24,8 @@ use Aatis\DependencyInjection\Exception\FileNotFoundException;
  */
 class ContainerBuilder
 {
+    private string $sourcePath;
+
     /**
      * @var array<int, class-string>
      */
@@ -53,19 +55,18 @@ class ContainerBuilder
     private array $composerJson;
 
     /**
-     * @param array{
-     *  env: string
-     * } $ctx
+     * @param mixed[] $ctx
      */
     public function __construct(
         private readonly array $ctx,
-        private readonly string $sourcePath
     ) {
+        $this->sourcePath = $this->ctx['APP_DOCUMENT_ROOT'].'/../src';
         $this->getConfig();
     }
 
     public function build(): Container
     {
+        $this->registerEnv();
         $this->initializeContainer();
 
         if (!empty($this->includeServices)) {
@@ -86,6 +87,13 @@ class ContainerBuilder
         $this->container->set(Container::class, $this->serviceFactory->create(Container::class)->setInstance($this->container));
         $this->container->set(ServiceFactory::class, $this->serviceFactory->create(ServiceFactory::class)->setInstance($this->serviceFactory));
         $this->container->set(ServiceInstanciator::class, $this->serviceFactory->create(ServiceInstanciator::class)->setInstance($serviceInstanciator));
+    }
+
+    private function registerEnv(): void
+    {
+        foreach ($this->ctx as $varName => $value) {
+            $this->container->set($varName, $value);
+        }
     }
 
     private function registerExtraServices(): void
@@ -143,14 +151,14 @@ class ContainerBuilder
 
     private function getShortPath(string $path): string
     {
-        return str_replace($_ENV['DOCUMENT_ROOT'].'/../src', '', $path);
+        return str_replace($this->sourcePath, '', $path);
     }
 
     private function transformToNamespace(string $filePath): string
     {
         $autoloaderInfos = $this->composerJson['autoload']['psr-4'];
         $baseNamespace = array_key_first(array_filter($autoloaderInfos, fn ($value) => 'src/' === $value));
-        $temp = str_replace($_ENV['DOCUMENT_ROOT'].'/../src/', $baseNamespace ?? 'App\\', $filePath);
+        $temp = str_replace($this->sourcePath.'/', $baseNamespace ?? 'App\\', $filePath);
         $temp = str_replace(DIRECTORY_SEPARATOR, '\\', $temp);
         $temp = str_replace('.php', '', $temp);
 
@@ -204,17 +212,17 @@ class ContainerBuilder
 
     private function getConfig(): void
     {
-        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml')) {
+        if (file_exists($this->ctx['APP_DOCUMENT_ROOT'].'/../config/services.yaml')) {
             /** @var YamlConfig */
-            $config = Yaml::parseFile($_ENV['DOCUMENT_ROOT'].'/../config/services.yaml');
+            $config = Yaml::parseFile($this->ctx['APP_DOCUMENT_ROOT'].'/../config/services.yaml');
             $this->includeServices = $config['include_services'] ?? [];
             $this->excludePaths = $config['exclude_paths'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
 
-        if (file_exists($_ENV['DOCUMENT_ROOT'].'/../composer.json')) {
+        if (file_exists($this->ctx['APP_DOCUMENT_ROOT'].'/../composer.json')) {
             /** @var ComposerJsonConfig */
-            $json = json_decode(file_get_contents($_ENV['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
+            $json = json_decode(file_get_contents($this->ctx['APP_DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
             $this->composerJson = $json;
         } else {
             throw new FileNotFoundException('composer.json file not found');
