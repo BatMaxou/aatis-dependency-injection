@@ -60,7 +60,11 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
         $args = [];
         $givenArgs = $service->getGivenArgs();
 
-        foreach ($service->getDependencies() as $varName => $dependencyType) {
+        foreach ($service->getDependencies() as $varName => $varInfos) {
+            $dependencyType = $varInfos['type'];
+            $isNullable = $varInfos['nullable'];
+            $defaultValue = $varInfos['default'];
+
             if ($container::class === $dependencyType) {
                 $args[] = $container;
             } elseif ($dependencyType && str_contains($dependencyType, '\\')) {
@@ -79,13 +83,17 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
                     $args[] = $container->get($dependencyType);
                 }
             } elseif (str_starts_with($varName, 'APP_')) {
-                $args[] = $container->get($varName);
+                $args[] = $container->get($varName) ?? $defaultValue;
             } else {
                 if (!isset($givenArgs[$varName])) {
-                    throw new ArgumentNotFoundException(sprintf('Missing argument %s for %s class', $varName, $service->getClass()));
-                }
+                    if (!$isNullable && null === $defaultValue) {
+                        throw new ArgumentNotFoundException(sprintf('Missing argument %s for %s class', $varName, $service->getClass()));
+                    }
 
-                $args[] = $givenArgs[$varName];
+                    $args[] = $defaultValue;
+                } else {
+                    $args[] = $givenArgs[$varName];
+                }
             }
         }
 
