@@ -46,8 +46,8 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Add a service to the container.
      *
-     * @param string $class Class of the service
-     * @param Service $service Service to add
+     * @param string $id is of the data to add
+     * @param mixed $service Data to add
      */
-    public function set(string $class, Service $service): void;
+    public function set(string $id, mixed $service): void;
 }

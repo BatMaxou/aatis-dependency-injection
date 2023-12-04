@@ -187,7 +187,11 @@ class Service
             } elseif (str_contains($type->getName(), '\\')) {
                 $dependencies[$parameter->getName()] = $type->getName();
             } else {
-                $dependencies[$parameter->getName()] = $type->getName();
+                if (str_starts_with($parameter->getName(), '_')) {
+                    $dependencies['APP'.strtoupper($parameter->getName())] = null;
+                } else {
+                    $dependencies[$parameter->getName()] = $type->getName();
+                }
             }
         }
 

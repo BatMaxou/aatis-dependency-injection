@@ -3,12 +3,19 @@
 namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Entity\Service;
+use Aatis\DependencyInjection\Exception\DataTypeException;
+use Aatis\DependencyInjection\Exception\EnvVariableNotFoundException;
 use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 
 class Container implements ContainerInterface
 {
+    /**
+     * @var array<string, mixed>
+     */
+    private array $env = [];
+
     /**
      * @var array<string, Service>
      */
@@ -22,18 +29,19 @@ class Container implements ContainerInterface
         $this->serviceInstanciator = $serviceInstanciator;
     }
 
-    /**
-     * @param class-string $class
-     */
-    public function get(string $class): object
+    public function get(string $id): mixed
     {
-        if (!isset($this->services[$class])) {
-            throw new ServiceNotFoundException(sprintf('Service %s not found', $class));
+        if (str_starts_with($id, 'APP_')) {
+            return $this->env[$id] ?? throw new EnvVariableNotFoundException(sprintf('Env variable %s not found', $id));
         }
 
-        $service = $this->services[$class];
+        if (isset($this->services[$id])) {
+            $service = $this->services[$id];
 
-        return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
+            return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
+        }
+
+        throw new ServiceNotFoundException(sprintf('Service %s not found', $id));
     }
 
     /**
@@ -108,9 +116,24 @@ class Container implements ContainerInterface
         return $interfaceServices;
     }
 
-    public function set(string $class, Service $service): void
+    public function set(string $id, mixed $value): void
     {
-        $this->services[$class] = $service;
+        if (
+            'string' === gettype($value)
+            && str_starts_with($id, 'APP_')
+        ) {
+            $this->env[$id] = $value;
+
+            return;
+        }
+
+        if ($value instanceof Service) {
+            $this->services[$id] = $value;
+
+            return;
+        }
+
+        throw new DataTypeException(sprintf('Can\'t set %s, value is neither a Service nor a env variable', $id));
     }
 
     /**

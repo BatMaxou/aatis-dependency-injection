@@ -78,6 +78,8 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
 
                     $args[] = $container->get($dependencyType);
                 }
+            } elseif (str_starts_with($varName, 'APP_')) {
+                $args[] = $container->get($varName);
             } else {
                 if (!isset($givenArgs[$varName])) {
                     throw new ArgumentNotFoundException(sprintf('Missing argument %s for %s class', $varName, $service->getClass()));
