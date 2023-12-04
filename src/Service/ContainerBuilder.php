@@ -66,8 +66,8 @@ class ContainerBuilder
 
     public function build(): Container
     {
-        $this->registerEnv();
         $this->initializeContainer();
+        $this->registerEnv();
 
         if (!empty($this->includeServices)) {
             $this->registerExtraServices();
