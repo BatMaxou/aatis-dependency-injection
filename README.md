@@ -97,20 +97,18 @@ public function __construct(string $_my_env_var)
 
 *the name of the variable must start with $_ and be followed by the env variable name in lowercase*
 
-```yaml
-
 ### Container uses
 
 With the container, you can get and set any service / env variable you want with the methods **get()** and **set()** of the container.
 
 ```php
 // Env Variable
-$container->get('ENV_VAR_NAME');
-$container->set('ENV_VAR_NAME', 'value');
+$container->get('APP_ENV_VAR_NAME');
+$container->set('APP_ENV_VAR_NAME', 'value');
 
 // Service
 $container->get('Namespace\To\The\Service');
 $container->set('Namespace\To\The\Service', new Namespace\To\The\Service());
 ```
 
-*ENV_VAR_NAME must start with "APP_"*
+*APP_ENV_VAR_NAME must start with "APP_"*
