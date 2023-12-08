@@ -181,32 +181,30 @@ class Service
         $reflexion = new \ReflectionClass($this->class);
         $constructor = $reflexion->getConstructor();
 
-        if (!$constructor) {
-            return;
-        }
+        if ($constructor) {
+            $parameters = $constructor->getParameters();
 
-        $parameters = $constructor->getParameters();
+            foreach ($parameters as $parameter) {
+                $type = $parameter->getType();
 
-        foreach ($parameters as $parameter) {
-            $type = $parameter->getType();
+                if (!$type || !($type instanceof \ReflectionNamedType)) {
+                    throw new \LogicException('Type don\'t have a name');
+                }
 
-            if (!$type || !($type instanceof \ReflectionNamedType)) {
-                throw new \LogicException('Type don\'t have a name');
-            }
+                $infos = [
+                    'type' => $type->getName(),
+                    'nullable' => $parameter->allowsNull(),
+                    'default' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
+                ];
 
-            $infos = [
-                'type' => $type->getName(),
-                'nullable' => $parameter->allowsNull(),
-                'default' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
-            ];
-
-            if (str_contains($type->getName(), '\\')) {
-                $dependencies[$parameter->getName()] = $infos;
-            } else {
-                if (str_starts_with($parameter->getName(), '_')) {
-                    $dependencies['APP'.strtoupper($parameter->getName())] = $infos;
-                } else {
+                if (str_contains($type->getName(), '\\')) {
                     $dependencies[$parameter->getName()] = $infos;
+                } else {
+                    if (str_starts_with($parameter->getName(), '_')) {
+                        $dependencies['APP'.strtoupper($parameter->getName())] = $infos;
+                    } else {
+                        $dependencies[$parameter->getName()] = $infos;
+                    }
                 }
             }
         }
