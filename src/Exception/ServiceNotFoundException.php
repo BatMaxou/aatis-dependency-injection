@@ -2,8 +2,8 @@
 
 namespace Aatis\DependencyInjection\Exception;
 
-use PsrPHP\Psr11\NotFoundException;
+use Psr\Container\NotFoundExceptionInterface;
 
-class ServiceNotFoundException extends NotFoundException
+class ServiceNotFoundException extends \Exception implements NotFoundExceptionInterface
 {
 }
