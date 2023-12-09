@@ -15,7 +15,7 @@
     },
     "require": {
         "symfony/yaml": "^6.3",
-        "psrphp/psr11": "^1.0"
+        "psr/container": "^1.0"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.38",
