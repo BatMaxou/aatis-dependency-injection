@@ -14,7 +14,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @return Service[] Entries
      */
-    public function getByTag(string $tag): array;
+    public function getByTag(string $tag, bool $serviceWanted = false): array;
 
     /**
      * Finds entries of the container by the given tags and returns them.
@@ -23,7 +23,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @return Service[] Entries
      */
-    public function getByTags(array $tags): array;
+    public function getByTags(array $tags, bool $serviceWanted = false): array;
 
     /**
      * Finds an entry of the container by the given interface and returns them.
@@ -32,7 +32,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @return Service[] Entries
      */
-    public function getByInterface(string $interface): array;
+    public function getByInterface(string $interface, bool $serviceWanted = false): array;
 
     /**
      * Finds entries of the container by the given interfaces and returns them.
@@ -41,7 +41,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @return Service[] Entries
      */
-    public function getByInterfaces(array $interfaces): array;
+    public function getByInterfaces(array $interfaces, bool $serviceWanted = false): array;
 
     /**
      * Add a service to the container.

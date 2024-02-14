@@ -131,7 +131,7 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
                 throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
             }
         } else {
-            $services = $container->getByInterface($interfaceNamespace);
+            $services = $container->getByInterface($interfaceNamespace, true);
             if (empty($services)) {
                 throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $interfaceNamespace));
             } elseif (1 === count($services)) {
