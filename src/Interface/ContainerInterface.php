@@ -12,7 +12,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string $tag Tag of the entries to look for
      *
-     * @return Service[] Entries
+     * @return mixed[] Entries
      */
     public function getByTag(string $tag, bool $serviceWanted = false): array;
 
@@ -21,7 +21,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string[] $tags Tags of the entries to look for
      *
-     * @return Service[] Entries
+     * @return mixed[] Entries
      */
     public function getByTags(array $tags, bool $serviceWanted = false): array;
 
@@ -30,7 +30,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string $interface Interface of the entry to look for
      *
-     * @return Service[] Entries
+     * @return mixed[] Entries
      */
     public function getByInterface(string $interface, bool $serviceWanted = false): array;
 
@@ -39,7 +39,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string[] $interfaces Interfaces of the entries to look for
      *
-     * @return Service[] Entries
+     * @return mixed[] Entries
      */
     public function getByInterfaces(array $interfaces, bool $serviceWanted = false): array;
 
