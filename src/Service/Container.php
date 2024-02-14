@@ -37,16 +37,16 @@ class Container implements ContainerInterface
         if (isset($this->services[$id])) {
             $service = $this->services[$id];
 
-            return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
+            return $this->getServiceInstance($service);
         }
 
         throw new ServiceNotFoundException(sprintf('Service %s not found', $id));
     }
 
     /**
-     * @return Service[]
+     * @return mixed[]
      */
-    public function getByTag(string $tag): array
+    public function getByTag(string $tag, bool $serviceWanted = false): array
     {
         $tagServices = [];
 
@@ -54,7 +54,7 @@ class Container implements ContainerInterface
             if (!in_array($tag, $service->getTags())) {
                 continue;
             }
-            $tagServices[] = $service;
+            $tagServices[] = $serviceWanted ? $service : $this->getServiceInstance($service);
         }
 
         return $tagServices;
@@ -63,9 +63,9 @@ class Container implements ContainerInterface
     /**
      * @param string[] $tags
      *
-     * @return Service[]
+     * @return mixed[]
      */
-    public function getByTags(array $tags): array
+    public function getByTags(array $tags, bool $serviceWanted = false): array
     {
         $tagServices = [];
 
@@ -73,16 +73,18 @@ class Container implements ContainerInterface
             if (count(array_intersect($tags, $service->getTags())) !== count($tags)) {
                 continue;
             }
-            $tagServices[] = $service;
+            $tagServices[] = $serviceWanted ? $service : $this->getServiceInstance($service);
         }
 
         return $tagServices;
     }
 
     /**
-     * @return Service[]
+     * @param class-string $interface
+     *
+     * @return mixed[]
      */
-    public function getByInterface(string $interface): array
+    public function getByInterface(string $interface, bool $serviceWanted = false): array
     {
         $interfaceServices = [];
 
@@ -90,18 +92,18 @@ class Container implements ContainerInterface
             if (!in_array($interface, $service->getInterfaces())) {
                 continue;
             }
-            $interfaceServices[] = $service;
+            $interfaceServices[] = $serviceWanted ? $service : $this->getServiceInstance($service);
         }
 
         return $interfaceServices;
     }
 
     /**
-     * @param string[] $interfaces
+     * @param class-string[] $interfaces
      *
-     * @return Service[]
+     * @return mixed[]
      */
-    public function getByInterfaces(array $interfaces): array
+    public function getByInterfaces(array $interfaces, bool $serviceWanted = false): array
     {
         $interfaceServices = [];
 
@@ -109,7 +111,7 @@ class Container implements ContainerInterface
             if (count(array_intersect($interfaces, $service->getInterfaces())) !== count($interfaces)) {
                 continue;
             }
-            $interfaceServices[] = $service;
+            $interfaceServices[] = $serviceWanted ? $service : $this->getServiceInstance($service);
         }
 
         return $interfaceServices;
@@ -141,5 +143,10 @@ class Container implements ContainerInterface
     public function has(string $class): bool
     {
         return isset($this->services[$class]);
+    }
+
+    private function getServiceInstance(Service $service): mixed
+    {
+        return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
     }
 }
