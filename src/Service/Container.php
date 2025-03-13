@@ -2,10 +2,10 @@
 
 namespace Aatis\DependencyInjection\Service;
 
-use Aatis\DependencyInjection\Entity\Service;
+use Aatis\DependencyInjection\Component\Service;
 use Aatis\DependencyInjection\Exception\DataTypeException;
-use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
+use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 
 class Container implements ContainerInterface
@@ -145,7 +145,7 @@ class Container implements ContainerInterface
         return isset($this->services[$class]);
     }
 
-    private function getServiceInstance(Service $service): mixed
+    private function getServiceInstance(Service $service): object
     {
         return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
     }

@@ -2,11 +2,11 @@
 
 namespace Aatis\DependencyInjection\Service;
 
-use Aatis\DependencyInjection\Entity\Service;
-use Aatis\DependencyInjection\Interface\ContainerInterface;
-use Aatis\DependencyInjection\Exception\ClassNotFoundException;
+use Aatis\DependencyInjection\Component\Service;
 use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
+use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
+use Aatis\DependencyInjection\Interface\ContainerInterface;
 use Aatis\DependencyInjection\Interface\ServiceFactoryInterface;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 

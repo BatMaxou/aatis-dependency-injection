@@ -2,7 +2,7 @@
 
 namespace Aatis\DependencyInjection\Interface;
 
-use Aatis\DependencyInjection\Entity\Service;
+use Aatis\DependencyInjection\Component\Service;
 
 interface ServiceFactoryInterface
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace Aatis\DependencyInjection\Entity;
+namespace Aatis\DependencyInjection\Component;
 
 /**
  * @phpstan-type ServiceDependencies array<string, array{

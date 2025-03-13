@@ -2,7 +2,7 @@
 
 namespace Aatis\DependencyInjection\Service;
 
-use Aatis\DependencyInjection\Entity\Service;
+use Aatis\DependencyInjection\Component\Service;
 use Aatis\DependencyInjection\Interface\ServiceFactoryInterface;
 
 class ServiceFactory implements ServiceFactoryInterface

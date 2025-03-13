@@ -2,7 +2,6 @@
 
 namespace Aatis\DependencyInjection\Interface;
 
-use Aatis\DependencyInjection\Entity\Service;
 use Psr\Container\ContainerInterface as PsrContainerInterface;
 
 interface ContainerInterface extends PsrContainerInterface

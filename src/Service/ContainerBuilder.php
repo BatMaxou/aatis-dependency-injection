@@ -3,8 +3,8 @@
 namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
-use Symfony\Component\Yaml\Yaml;
 use Aatis\DependencyInjection\Exception\FileNotFoundException;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * @phpstan-type YamlConfig array{
