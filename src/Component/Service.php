@@ -3,6 +3,8 @@
 namespace Aatis\DependencyInjection\Component;
 
 /**
+ * @template T of object
+ *
  * @phpstan-type ServiceDependencies array<string, array{
  *  type: class-string|string|null,
  *  nullable: bool,
@@ -16,7 +18,15 @@ class Service
      */
     private ?array $dependencies = null;
 
+    /**
+     * @var T|null
+     */
     private ?object $instance = null;
+
+    /**
+     * @var ?\ReflectionClass<T>
+     */
+    private ?\ReflectionClass $reflexion = null;
 
     /**
      * @var array<string, mixed>
@@ -29,17 +39,12 @@ class Service
     private array $args = [];
 
     /**
-     * @var string[]
+     * @var ServiceTag[]
      */
     private array $tags = [];
 
     /**
-     * @var string[]
-     */
-    private array $interfaces = [];
-
-    /**
-     * @param class-string $class
+     * @param class-string<T> $class
      */
     public function __construct(
         private readonly string $class,
@@ -47,7 +52,7 @@ class Service
     }
 
     /**
-     * @return class-string
+     * @return class-string<T>
      */
     public function getClass(): string
     {
@@ -69,9 +74,24 @@ class Service
         return $dependencies;
     }
 
+    /**
+     * @return T|null
+     */
     public function getInstance(): ?object
     {
         return $this->instance;
+    }
+
+    /**
+     * @return \ReflectionClass<T>
+     */
+    public function getReflexion(): \ReflectionClass
+    {
+        if (null === $this->reflexion) {
+            $this->reflexion = new \ReflectionClass($this->class);
+        }
+
+        return $this->reflexion;
     }
 
     /**
@@ -91,7 +111,7 @@ class Service
     }
 
     /**
-     * @return string[]
+     * @return ServiceTag[]
      */
     public function getTags(): array
     {
@@ -99,16 +119,21 @@ class Service
     }
 
     /**
-     * @return string[]
+     * @param T $instance
      */
-    public function getInterfaces(): array
-    {
-        return $this->interfaces;
-    }
-
     public function setInstance(object $instance): static
     {
         $this->instance = $instance;
+
+        return $this;
+    }
+
+    /**
+     * @param \ReflectionClass<T> $reflexion
+     */
+    public function setReflexion(\ReflectionClass $reflexion): static
+    {
+        $this->reflexion = $reflexion;
 
         return $this;
     }
@@ -134,7 +159,7 @@ class Service
     }
 
     /**
-     * @param string[] $tags
+     * @param ServiceTag[] $tags
      */
     public function setTags(array $tags): static
     {
@@ -144,23 +169,12 @@ class Service
     }
 
     /**
-     * @param string[] $interfaces
-     */
-    public function setInterfaces(array $interfaces): static
-    {
-        $this->interfaces = $interfaces;
-
-        return $this;
-    }
-
-    /**
      * @return array{
-     *  class: class-string,
+     *  class: class-string<T>,
      *  dependencies: ServiceDependencies|null,
      *  givenArgs: array<string, mixed>,
      *  args: mixed[],
-     *  tags: string[],
-     *  interfaces: string[]
+     *  tags: ServiceTag[],
      * }
      */
     public function toArray(): array
@@ -171,14 +185,13 @@ class Service
             'givenArgs' => $this->givenArgs,
             'args' => $this->args,
             'tags' => $this->tags,
-            'interfaces' => $this->interfaces,
         ];
     }
 
     private function loadDependencies(): void
     {
         $dependencies = [];
-        $reflexion = new \ReflectionClass($this->class);
+        $reflexion = $this->getReflexion();
         $constructor = $reflexion->getConstructor();
 
         if ($constructor) {
@@ -201,7 +214,7 @@ class Service
                     $dependencies[$parameter->getName()] = $infos;
                 } else {
                     if (str_starts_with($parameter->getName(), '_')) {
-                        $dependencies['APP'.strtoupper($parameter->getName())] = $infos;
+                        $dependencies[sprintf('@%s', strtoupper($parameter->getName()))] = $infos;
                     } else {
                         $dependencies[$parameter->getName()] = $infos;
                     }

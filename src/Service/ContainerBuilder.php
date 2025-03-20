@@ -2,6 +2,7 @@
 
 namespace Aatis\DependencyInjection\Service;
 
+use Aatis\DependencyInjection\Component\Container;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\FileNotFoundException;
 use Symfony\Component\Yaml\Yaml;
@@ -60,7 +61,7 @@ class ContainerBuilder
     public function __construct(
         private readonly array $ctx,
     ) {
-        $this->sourcePath = $this->ctx['APP_DOCUMENT_ROOT'].'/../src';
+        $this->sourcePath = $this->ctx['DOCUMENT_ROOT'].'/../src';
         $this->getConfig();
     }
 
@@ -80,8 +81,9 @@ class ContainerBuilder
 
     private function initializeContainer(): void
     {
-        $this->serviceFactory = new ServiceFactory($this->givenParams);
-        $serviceInstanciator = new ServiceInstanciator($this->serviceFactory);
+        $serviceTagBuilder = new ServiceTagBuilder();
+        $this->serviceFactory = new ServiceFactory($serviceTagBuilder, $this->givenParams);
+        $serviceInstanciator = new ServiceInstanciator($this->serviceFactory, $serviceTagBuilder);
         $this->container = new Container($serviceInstanciator);
 
         $this->container->set(Container::class, $this->serviceFactory->create(Container::class)->setInstance($this->container));
@@ -92,14 +94,15 @@ class ContainerBuilder
     private function registerEnv(): void
     {
         foreach ($this->ctx as $varName => $value) {
-            $this->container->set($varName, $value);
+            $this->container->set(sprintf('@_%s', $varName), $value);
         }
     }
 
     private function registerExtraServices(): void
     {
         foreach ($this->includeServices as $namespace) {
-            if (!$this->isValidService($namespace)) {
+            $reflexion = $this->isValidService($namespace);
+            if (!$reflexion) {
                 throw new ClassNotFoundException($namespace);
             }
 
@@ -107,7 +110,10 @@ class ContainerBuilder
                 continue;
             }
 
-            $this->container->set($namespace, $this->serviceFactory->create($namespace));
+            $service = $this->serviceFactory
+                ->create($namespace)
+                ->setReflexion($reflexion);
+            $this->container->set($namespace, $service);
         }
     }
 
@@ -120,7 +126,7 @@ class ContainerBuilder
         $folderContent = array_diff(scandir($folderPath) ?: [], ['..', '.']);
 
         foreach ($folderContent as $element) {
-            $path = $folderPath.'/'.$element;
+            $path = sprintf('%s/%s', $folderPath, $element);
 
             if (is_dir($path)) {
                 $this->registerFolder($path);
@@ -136,16 +142,16 @@ class ContainerBuilder
     {
         $shortPath = $this->getShortPath($filePath);
         $namespace = $this->transformToNamespace($filePath);
+        $reflexion = $this->isValidService($namespace, $shortPath);
 
-        if (
-            !$this->isValidService($namespace, $shortPath)
-            || !$this->isEnvValid($namespace)
-        ) {
+        if (!$reflexion || !$this->isEnvValid($namespace)) {
             return;
         }
 
         /** @var class-string $namespace */
-        $service = $this->serviceFactory->create($namespace);
+        $service = $this->serviceFactory
+            ->create($namespace)
+            ->setReflexion($reflexion);
         $this->container->set($namespace, $service);
     }
 
@@ -165,7 +171,10 @@ class ContainerBuilder
         return $temp;
     }
 
-    private function isValidService(string $namespace, ?string $shortPath = null): bool
+    /**
+     * @return \ReflectionClass<object>|false
+     */
+    private function isValidService(string $namespace, ?string $shortPath = null): \ReflectionClass|false
     {
         if (
             isset($shortPath)
@@ -184,17 +193,17 @@ class ContainerBuilder
             || !class_exists($namespace)
         ) {
             return false;
-        } else {
-            $reflexion = new \ReflectionClass($namespace);
-            if (
-                $reflexion->isAbstract()
-                || $reflexion->implementsInterface('\Throwable')
-            ) {
-                return false;
-            }
         }
 
-        return true;
+        $reflexion = new \ReflectionClass($namespace);
+        if (
+            $reflexion->isAbstract()
+            || $reflexion->implementsInterface('\Throwable')
+        ) {
+            return false;
+        }
+
+        return $reflexion;
     }
 
     private function isEnvValid(string $namespace): bool
@@ -212,17 +221,17 @@ class ContainerBuilder
 
     private function getConfig(): void
     {
-        if (file_exists($this->ctx['APP_DOCUMENT_ROOT'].'/../config/services.yaml')) {
+        if (file_exists($this->ctx['DOCUMENT_ROOT'].'/../config/services.yaml')) {
             /** @var YamlConfig */
-            $config = Yaml::parseFile($this->ctx['APP_DOCUMENT_ROOT'].'/../config/services.yaml');
+            $config = Yaml::parseFile($this->ctx['DOCUMENT_ROOT'].'/../config/services.yaml');
             $this->includeServices = $config['include_services'] ?? [];
             $this->excludePaths = $config['exclude_paths'] ?? [];
             $this->givenParams = $config['services'] ?? [];
         }
 
-        if (file_exists($this->ctx['APP_DOCUMENT_ROOT'].'/../composer.json')) {
+        if (file_exists($this->ctx['DOCUMENT_ROOT'].'/../composer.json')) {
             /** @var ComposerJsonConfig */
-            $json = json_decode(file_get_contents($this->ctx['APP_DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
+            $json = json_decode(file_get_contents($this->ctx['DOCUMENT_ROOT'].'/../composer.json') ?: '', true);
             $this->composerJson = $json;
         } else {
             throw new FileNotFoundException('composer.json file not found');

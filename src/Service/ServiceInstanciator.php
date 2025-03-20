@@ -3,6 +3,7 @@
 namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Component\Service;
+use Aatis\DependencyInjection\Enum\ServiceTagOption;
 use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
@@ -12,13 +13,12 @@ use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
 
 class ServiceInstanciator implements ServiceInstanciatorInterface
 {
-    private ServiceFactoryInterface $serviceFactory;
-
     private ?ContainerInterface $container = null;
 
-    public function __construct(ServiceFactoryInterface $serviceFactory)
-    {
-        $this->serviceFactory = $serviceFactory;
+    public function __construct(
+        private readonly ServiceFactoryInterface $serviceFactory,
+        private readonly ServiceTagBuilder $serviceTagBuilder,
+    ) {
     }
 
     public function setContainer(ContainerInterface $container): void
@@ -26,6 +26,13 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
         $this->container = $container;
     }
 
+    /**
+     * @template T of object
+     *
+     * @param Service<T> $service
+     *
+     * @return T
+     */
     public function instanciate(Service $service): object
     {
         $instance = $service->getInstance();
@@ -40,13 +47,12 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
 
         $service->setInstance(new ($service->getClass())(...$service->getArgs()));
 
-        /** @var object $instance */
-        $instance = $service->getInstance();
-
-        return $instance;
+        return $service->getInstance() ?? throw new \LogicException('Service instance not set');
     }
 
     /**
+     * @param Service<object> $service
+     *
      * @return mixed[]
      */
     private function loadArgs(Service $service): array
@@ -82,7 +88,7 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
 
                     $args[] = $container->get($dependencyType);
                 }
-            } elseif (str_starts_with($varName, 'APP_')) {
+            } elseif (str_starts_with($varName, '@_')) {
                 $args[] = $container->get($varName) ?? $defaultValue;
             } else {
                 if (!isset($givenArgs[$varName])) {
@@ -131,8 +137,8 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
                 throw new ClassNotFoundException(sprintf('Class %s not found', $implementingClass));
             }
         } else {
-            /** @var Service[] */
-            $services = $container->getByInterface($interfaceNamespace, true);
+            /** @var Service<object>[] $services */
+            $services = $container->get($this->serviceTagBuilder->buildFromInterface($interfaceNamespace, [ServiceTagOption::SERVICE_TARGETED]));
             if (empty($services)) {
                 throw new ClassNotFoundException(sprintf('Missing class implementing %s interface', $interfaceNamespace));
             } elseif (1 === count($services)) {
