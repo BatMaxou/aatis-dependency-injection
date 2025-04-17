@@ -1,10 +1,14 @@
-# Aatis DI
+# Aatis Dependency Injection
 
 ## Installation
 
 ```bash
 composer require aatis/dependency-injection
 ```
+
+## Dependencies
+
+- `aatis/parameter-bag` (https://github.com/BatMaxou/aatis-parameter-bag)
 
 ## Usage
 
