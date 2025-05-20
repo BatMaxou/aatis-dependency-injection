@@ -5,7 +5,9 @@ namespace Aatis\DependencyInjection\Component;
 use Aatis\DependencyInjection\Exception\DataTypeException;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
 use Aatis\DependencyInjection\Interface\ContainerInterface;
-use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
+use Aatis\DependencyInjection\Interface\ServiceFactoryInterface;
+use Aatis\DependencyInjection\Service\ServiceInstanciator;
+use Aatis\DependencyInjection\Service\ServiceTagBuilder;
 
 class Container implements ContainerInterface
 {
@@ -19,12 +21,16 @@ class Container implements ContainerInterface
      */
     private array $services = [];
 
-    private ServiceInstanciatorInterface $serviceInstanciator;
+    private readonly ServiceInstanciator $serviceInstanciator;
 
-    public function __construct(ServiceInstanciatorInterface $serviceInstanciator)
-    {
-        $serviceInstanciator->setContainer($this);
-        $this->serviceInstanciator = $serviceInstanciator;
+    public function __construct(
+        private readonly ServiceFactoryInterface $serviceFactory,
+        ServiceTagBuilder $serviceTagBuilder,
+    ) {
+        $this->serviceInstanciator = new ServiceInstanciator($serviceTagBuilder);
+        $this->serviceInstanciator->setContainer($this);
+        $this->set(ServiceInstanciator::class, $serviceFactory->create(ServiceInstanciator::class)->setInstance($this->serviceInstanciator));
+        $this->set(Container::class, $serviceFactory->create(Container::class)->setInstance($this));
     }
 
     public function get(string $id): mixed
@@ -49,12 +55,7 @@ class Container implements ContainerInterface
                     continue;
                 }
 
-                $priority = 0;
-                if ($foundedTag->getParameters()->has('priority')) {
-                    $priority = $foundedTag->getParameters()->get('priority');
-                }
-
-                $serviceMapping[$priority][] = $serviceWanted ? $service : $this->getServiceInstance($service);
+                $serviceMapping[$this->getTagPriority($foundedTag)][] = $serviceWanted ? $service : $this->getServiceInstance($service);
             }
 
             $nbServices = count($serviceMapping);
@@ -73,7 +74,13 @@ class Container implements ContainerInterface
         if (isset($this->services[$id])) {
             $service = $this->services[$id];
 
-            return $this->getServiceInstance($service);
+            return $serviceWanted ? $service : $this->getServiceInstance($service);
+        }
+
+        if (class_exists($id)) {
+            $service = $this->serviceFactory->create($id);
+
+            return $serviceWanted ? $service : $this->getServiceInstance($service);
         }
 
         throw new ServiceNotFoundException(sprintf('Service %s not found', $id));
@@ -81,10 +88,7 @@ class Container implements ContainerInterface
 
     public function set(string $id, mixed $value): void
     {
-        if (
-            'string' === gettype($value)
-            && str_starts_with($id, '@_')
-        ) {
+        if (str_starts_with($id, '@_')) {
             $this->env[$id] = $value;
 
             return;
@@ -112,6 +116,25 @@ class Container implements ContainerInterface
      */
     private function getServiceInstance(Service $service): object
     {
-        return $service->getInstance() ?? $this->serviceInstanciator->instanciate($service);
+        $instance = $service->getInstance();
+        if ($instance) {
+            return $instance;
+        }
+
+        return $this->serviceInstanciator->instanciate($service);
+    }
+
+    private function getTagPriority(ServiceTag $tag): int
+    {
+        $priority = 0;
+        if ($tag->getParameters()->has('priority')) {
+            $priority = $tag->getParameters()->get('priority');
+        }
+
+        if (!is_int($priority)) {
+            throw new DataTypeException('Priority must be an integer');
+        }
+
+        return $priority;
     }
 }

@@ -34,39 +34,13 @@ class ServiceFactory implements ServiceFactoryInterface
     public function create(string $namespace): Service
     {
         $service = new Service($namespace);
+        $service->setAbstracts($this->getAbstracts($service));
+
         $priorisationTags = $this->getPriotisationTags($service);
-
-        $tags = [];
-        $interfaces = array_values(class_implements($namespace));
-        /** @var ServiceTag $tag */
-        foreach ($this->serviceTagBuilder->buildFromInterfaces($interfaces, [TagOption::BUILD_OBJECT]) as $tag) {
-            $tags[] = $tag->setParameters($this->buildParameters(['tag' => $tag->getName()], $priorisationTags));
-        }
-
-        if (isset($this->givenParams[$namespace])) {
-            if (isset($this->givenParams[$namespace]['tags'])) {
-                $tagParams = $this->givenParams[$namespace]['tags'];
-                if (is_array($tagParams)) {
-                    foreach ($tagParams as $tagParameter) {
-                        if (is_string($tagParameter)) {
-                            /** @var ServiceTag */
-                            $tag = $this->serviceTagBuilder->buildFromName($tagParameter, [TagOption::BUILD_OBJECT]);
-                            $tags[] = $tag->setParameters($this->buildParameters(['tag' => $tag->getName()], $priorisationTags));
-                        }
-
-                        if (is_array($tagParameter) && isset($tagParameter['tag'])) {
-                            /** @var ServiceTag */
-                            $tag = $this->serviceTagBuilder->buildFromName($tagParameter['tag'], [TagOption::BUILD_OBJECT]);
-                            $tags[] = $tag->setParameters($this->buildParameters($tagParameter, $priorisationTags));
-                        }
-                    }
-                }
-            }
-
-            if (isset($this->givenParams[$namespace]['arguments'])) {
-                $service->setGivenArgs($this->givenParams[$namespace]['arguments']);
-            }
-        }
+        $tags = [
+            ...$this->getInterfaceTags($service, $priorisationTags),
+            ...$this->processGivenParams($service, $priorisationTags),
+        ];
 
         if (!empty($tags)) {
             /** @var ServiceTag[] $tags */
@@ -74,6 +48,155 @@ class ServiceFactory implements ServiceFactoryInterface
         }
 
         return $service;
+    }
+
+    /**
+     * @param Service<object> $service
+     *
+     * @return class-string[]
+     */
+    private function getAbstracts(Service $service): array
+    {
+        $abstracts = [];
+
+        $rootReflection = $service->getReflexion();
+        while ($parent = $rootReflection->getParentClass()) {
+            if ($parent->isAbstract()) {
+                $abstracts[] = $parent->getName();
+            }
+            $rootReflection = $parent;
+        }
+
+        return $abstracts;
+    }
+
+    /**
+     * @param Service<object> $service
+     *
+     * @return array<string>|null
+     */
+    private function getPriotisationTags(Service $service): ?array
+    {
+        $attributes = $service->getReflexion()->getAttributes(AsDefaultTaggedService::class);
+
+        return empty($attributes) ? null : $this->transformTags($attributes[0]->newInstance()->getTags());
+    }
+
+    /**
+     * @param array<string> $tags
+     *
+     * @return array<string>
+     */
+    private function transformTags(array $tags): array
+    {
+        return array_map(fn (string $tagName) => $this->serviceTagBuilder->buildFromName($tagName), $tags);
+    }
+
+    /**
+     * @param Service<object> $service
+     * @param array<string>|null $priorisationTags
+     *
+     * @return ServiceTag[]
+     */
+    private function getInterfaceTags(Service $service, ?array $priorisationTags): array
+    {
+        $tags = [];
+        $interfaces = array_values(class_implements($service->getClass()));
+        /** @var ServiceTag $tag */
+        foreach ($this->serviceTagBuilder->buildFromInterfaces($interfaces, [TagOption::BUILD_OBJECT]) as $tag) {
+            $tags[] = $tag->setParameters($this->buildParameters(['tag' => $tag->getName()], $priorisationTags));
+        }
+
+        return $tags;
+    }
+
+    /**
+     * @param Service<object> $service
+     * @param array<string>|null $priorisationTags
+     *
+     * @return ServiceTag[]
+     */
+    private function processGivenParams(Service $service, ?array $priorisationTags): array
+    {
+        $namespaces = $this->getNamespacesWithGivenParams($service);
+        if (empty($namespaces)) {
+            return [];
+        }
+
+        $service->setGivenArgs($this->getGivenArgs($namespaces));
+
+        return $this->getGivenTags($namespaces, $priorisationTags);
+    }
+
+    /**
+     * @param Service<object> $service
+     *
+     * @return class-string[]
+     */
+    private function getNamespacesWithGivenParams(Service $service): array
+    {
+        $namespaces = [];
+        foreach ([$service->getClass(), ...$service->getAbstracts()] as $namespace) {
+            if (isset($this->givenParams[$namespace])) {
+                $namespaces[] = $namespace;
+            }
+        }
+
+        return array_reverse($namespaces);
+    }
+
+    /**
+     * @param class-string[] $targets
+     *
+     * @return mixed[]
+     */
+    private function getGivenArgs(array $targets): array
+    {
+        $givenArgs = [];
+        foreach ($targets as $namespace) {
+            if (isset($this->givenParams[$namespace]['arguments'])) {
+                $givenArgs = array_merge($givenArgs, $this->givenParams[$namespace]['arguments']);
+            }
+        }
+
+        return $givenArgs;
+    }
+
+    /**
+     * @param class-string[] $targets
+     * @param array<string>|null $priorisationTags
+     *
+     * @return ServiceTag[]
+     */
+    private function getGivenTags(array $targets, ?array $priorisationTags): array
+    {
+        $tags = [];
+        foreach ($targets as $namespace) {
+            if (!isset($this->givenParams[$namespace]['tags'])) {
+                return [];
+            }
+
+            $tagParams = $this->givenParams[$namespace]['tags'];
+            if (!is_array($tagParams)) {
+                return [];
+            }
+
+            foreach ($tagParams as $tagParameter) {
+                if (is_string($tagParameter)) {
+                    /** @var ServiceTag */
+                    $tag = $this->serviceTagBuilder->buildFromName($tagParameter, [TagOption::BUILD_OBJECT]);
+                    $tags[] = $tag->setParameters($this->buildParameters(['tag' => $tag->getName()], $priorisationTags));
+                }
+
+                if (is_array($tagParameter) && isset($tagParameter['tag'])) {
+                    /** @var ServiceTag */
+                    $tag = $this->serviceTagBuilder->buildFromName($tagParameter['tag'], [TagOption::BUILD_OBJECT]);
+                    $tags[] = $tag->setParameters($this->buildParameters($tagParameter, $priorisationTags));
+                }
+            }
+        }
+
+        return $tags;
     }
 
     /**
@@ -100,27 +223,5 @@ class ServiceFactory implements ServiceFactoryInterface
         }
 
         return $bag;
-    }
-
-    /**
-     * @param Service<object> $service
-     *
-     * @return array<string>|null
-     */
-    private function getPriotisationTags(Service $service): ?array
-    {
-        $attributes = $service->getReflexion()->getAttributes(AsDefaultTaggedService::class);
-
-        return empty($attributes) ? null : $this->transformTags($attributes[0]->newInstance()->getTags());
-    }
-
-    /**
-     * @param array<string> $tags
-     *
-     * @return array<string>
-     */
-    private function transformTags(array $tags): array
-    {
-        return array_map(fn (string $tagName) => $this->serviceTagBuilder->buildFromName($tagName), $tags);
     }
 }

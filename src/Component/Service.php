@@ -4,19 +4,10 @@ namespace Aatis\DependencyInjection\Component;
 
 /**
  * @template T of object
- *
- * @phpstan-type ServiceDependencies array<string, array{
- *  type: class-string|string|null,
- *  nullable: bool,
- *  default: mixed
- * }>
  */
 class Service
 {
-    /**
-     * @var ServiceDependencies|null
-     */
-    private ?array $dependencies = null;
+    private LazyDependencies $dependencies;
 
     /**
      * @var T|null
@@ -44,11 +35,16 @@ class Service
     private array $tags = [];
 
     /**
+     * @var class-string[]
+     */
+    private array $abstracts = [];
+
+    /**
      * @param class-string<T> $class
      */
-    public function __construct(
-        private readonly string $class,
-    ) {
+    public function __construct(private readonly string $class)
+    {
+        $this->dependencies = new LazyDependencies();
     }
 
     /**
@@ -60,18 +56,11 @@ class Service
     }
 
     /**
-     * @return ServiceDependencies
+     * @return Dependency[]
      */
     public function getDependencies(): array
     {
-        if (null === $this->dependencies) {
-            $this->loadDependencies();
-        }
-
-        /** @var ServiceDependencies */
-        $dependencies = $this->dependencies;
-
-        return $dependencies;
+        return $this->dependencies->get($this->getReflexion());
     }
 
     /**
@@ -116,6 +105,14 @@ class Service
     public function getTags(): array
     {
         return $this->tags;
+    }
+
+    /**
+     * @return class-string[]
+     */
+    public function getAbstracts(): array
+    {
+        return $this->abstracts;
     }
 
     /**
@@ -169,59 +166,12 @@ class Service
     }
 
     /**
-     * @return array{
-     *  class: class-string<T>,
-     *  dependencies: ServiceDependencies|null,
-     *  givenArgs: array<string, mixed>,
-     *  args: mixed[],
-     *  tags: ServiceTag[],
-     * }
+     * @param class-string[] $abstracts
      */
-    public function toArray(): array
+    public function setAbstracts(array $abstracts): static
     {
-        return [
-            'class' => $this->class,
-            'dependencies' => $this->dependencies,
-            'givenArgs' => $this->givenArgs,
-            'args' => $this->args,
-            'tags' => $this->tags,
-        ];
-    }
+        $this->abstracts = $abstracts;
 
-    private function loadDependencies(): void
-    {
-        $dependencies = [];
-        $reflexion = $this->getReflexion();
-        $constructor = $reflexion->getConstructor();
-
-        if ($constructor) {
-            $parameters = $constructor->getParameters();
-
-            foreach ($parameters as $parameter) {
-                $type = $parameter->getType();
-
-                if (!$type || !($type instanceof \ReflectionNamedType)) {
-                    throw new \LogicException('Type don\'t have a name');
-                }
-
-                $infos = [
-                    'type' => $type->getName(),
-                    'nullable' => $parameter->allowsNull(),
-                    'default' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
-                ];
-
-                if (str_contains($type->getName(), '\\')) {
-                    $dependencies[$parameter->getName()] = $infos;
-                } else {
-                    if (str_starts_with($parameter->getName(), '_')) {
-                        $dependencies[sprintf('@%s', strtoupper($parameter->getName()))] = $infos;
-                    } else {
-                        $dependencies[$parameter->getName()] = $infos;
-                    }
-                }
-            }
-        }
-
-        $this->dependencies = $dependencies;
+        return $this;
     }
 }

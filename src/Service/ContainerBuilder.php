@@ -83,12 +83,7 @@ class ContainerBuilder
     {
         $serviceTagBuilder = new ServiceTagBuilder();
         $this->serviceFactory = new ServiceFactory($serviceTagBuilder, $this->givenParams);
-        $serviceInstanciator = new ServiceInstanciator($this->serviceFactory, $serviceTagBuilder);
-        $this->container = new Container($serviceInstanciator);
-
-        $this->container->set(Container::class, $this->serviceFactory->create(Container::class)->setInstance($this->container));
-        $this->container->set(ServiceFactory::class, $this->serviceFactory->create(ServiceFactory::class)->setInstance($this->serviceFactory));
-        $this->container->set(ServiceInstanciator::class, $this->serviceFactory->create(ServiceInstanciator::class)->setInstance($serviceInstanciator));
+        $this->container = new Container($this->serviceFactory, $serviceTagBuilder);
     }
 
     private function registerEnv(): void
