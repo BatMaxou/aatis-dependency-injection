@@ -31,16 +31,14 @@ Precise the files that are not services.
 # In config/services.yaml file :
 
 exclude_paths:
-  - '/Folder'
-  - '/OtherFolder/file.txt'
+  - "/Folder"
+  - "/OtherFolder/file.txt"
   - <...>
 ```
 
 ### Service config
 
 You can manage in which environment your service must be loaded and the arguments to pass to the constructor.
-
-You can also precise the class to use for the dependency when it is an interface.
 
 Finally, you can give extra tags to any service.
 
@@ -50,24 +48,27 @@ Finally, you can give extra tags to any service.
 services:
     Namespace\Of\Service:
         environment:
-            - 'env_name1'
-            - 'env_name2'
+            - "env_name1"
+            - "env_name2"
             - <...>
         arguments:
-            variable_name: 'value'
+            variable_name: "value"
         tags:
-            - 'tag_name_1'
+            - "tag_name_1"
             - { tag: "tag_name_2", priority: 10 }
             - <...>
 ```
 
 > [!NOTE]
-> The key of an argument must have the same name as in the constructor*
-
+> The key of an argument must have the same name as in the constructor
 
 > [!NOTE]
 > Tags have priority set to 0 by default. You can set it to any number you want.
 > Services will be sorted by highest priority first when the `Container` return multiple services. 
+
+> [!NOTE]
+> It is also possible to define a configuration for an abstract class.
+> This configuration will be used for all the services extending this class, and will be merged with the configuration of the service itself if provided.
 
 ### Interface into constructor
 
@@ -86,7 +87,7 @@ If you want to use a specific service, don't forget to declare it into the confi
 services:
     Namespace\Of\Service:
         arguments:
-            variable_name: 'Namespace\Of\Service\Wanted\With\The\Interface'
+            variable_name: Namespace\Of\Service\Wanted\With\The\Interface
 ```
 
 > [!WARNING]
@@ -96,7 +97,7 @@ services:
 # In config/services.yaml file :
 
 include_services:
-    - 'Namespace\Of\The\Vendor\Service\Implementing\The\Interface'
+    - Namespace\Of\The\Vendor\Service\Implementing\The\Interface
 ```
 
 ### Env variable into constructor
@@ -117,15 +118,15 @@ public function __construct(string $_env_var)
 
 #### Get and Set
 
-With the container, you can get and set any service / env variable you want with the methods `get()` and `set()`.
+With the container, you can get and set any service / env variable (prefixed by `@_`) you want with the methods `get()` and `set()`.
 
 However, to set a service, you must give an instance of the `Service` class.
 You can create it with the `ServiceFactory` service.
 
 ```php
 // Env Variable
-$container->get('ENV_VAR_NAME');
-$container->set('ENV_VAR_NAME', 'value');
+$container->get('@_ENV_VAR_NAME');
+$container->set('@_ENV_VAR_NAME', 'value');
 
 // Service
 $container->get(Service::class);
@@ -138,20 +139,25 @@ $container->set(Service::class, $service);
 
 You can get services by tag using the following prefix:
 
-- `@tag_` to get the instance of the service tagged.
-- `@service_of_tag_` to get the `Service` component instance of the service tagged into the container.
+- `@tag_` to get the instances of the services tagged.
+- `@service_of_tag_` to get the `Service` component instances of the services tagged.
 
 > [!TIP]
-> It is recommended to inject the `ServiceTagBuilder` and to generate tags with it.
+> It is recommended to inject the `ServiceTagBuilder` and generate tags with it.
 
 ```php
 // With ServiceTagBuilder
 $tagBuilder = $container->get(ServiceTagBuilder::class);
-$taggedServiceInstances = $container->get($tagBuilder->buildFromName('tag_name_1')); // returns the instance of the service tagged
-$taggedServices = $container->get($tagBuilder->buildFromName('tag_name_1', [ServiceTagOption::SERVICE_TARGETED])); // returns the Service component instance of the service tagged
+
+// returns the instance of the services tagged
+$taggedServiceInstances = $container->get($tagBuilder->buildFromName('tag_name_1'));
+
+// returns the Service component instances of the services tagged
+$taggedServices = $container->get($tagBuilder->buildFromName('tag_name_1', [ServiceTagOption::SERVICE_TARGETED]));
 
 // Without ServiceTagBuilder
-$taggedServices = $container->get('@tag_name_1');
+$taggedServiceInstances = $container->get('@tag_tag_name_1');
+$taggedServices = $container->get('@service_of_tag_tag_name_1');
 ```
 
 #### Get by interface
@@ -180,7 +186,7 @@ class AnotherServiceWithTags
 ```
 
 > [!NOTE]
-> Note that if you set the priority of the service into the config, it will override the one set by this attribute.
+> If you set the priority of the service into the config, it will override the one set by this attribute.
 
 ### ServiceFactory
 
