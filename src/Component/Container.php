@@ -79,6 +79,7 @@ class Container implements ContainerInterface
 
         if (class_exists($id)) {
             $service = $this->serviceFactory->create($id);
+            $this->set($id, $service);
 
             return $serviceWanted ? $service : $this->getServiceInstance($service);
         }
