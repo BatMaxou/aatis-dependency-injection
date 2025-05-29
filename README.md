@@ -163,16 +163,9 @@ $container->set(Service::class, $service);
 
 #### Get by tag
 
-You can get services by tag using the following prefix:
-
-- `@tag_` to get the instances of the services tagged.
-- `@service_of_tag_` to get the `Service` component instances of the services tagged.
-
-> [!TIP]
-> It is recommended to inject the `ServiceTagBuilder` and generate tags with it.
+You can get services by tag using the `ServiceTagBuilder`:
 
 ```php
-// With ServiceTagBuilder
 $tagBuilder = $container->get(ServiceTagBuilder::class);
 
 // returns the instance of the services tagged
@@ -180,10 +173,6 @@ $taggedServiceInstances = $container->get($tagBuilder->buildFromName('tag_name_1
 
 // returns the Service component instances of the services tagged
 $taggedServices = $container->get($tagBuilder->buildFromName('tag_name_1', [ServiceTagOption::SERVICE_TARGETED]));
-
-// Without ServiceTagBuilder
-$taggedServiceInstances = $container->get('@tag_tag_name_1');
-$taggedServices = $container->get('@service_of_tag_tag_name_1');
 ```
 
 #### Get by interface
@@ -194,6 +183,21 @@ You can easily get services implementing an interface using `ServiceTagBuilder` 
 $tagBuilder = $container->get(ServiceTagBuilder::class);
 $taggedServiceInstances = $container->get($tagBuilder->buildFromInterface(Interface::class));
 ```
+
+#### Get single service
+
+You can get the `Service` of a single service using `ServiceTagOption::FROM_CLASS` and `ServiceTagOption::SERVICE_TARGETED` options.
+
+```php
+$tagBuilder = $container->get(ServiceTagBuilder::class);
+
+// returns the Service component instance of the service targeted
+$service = $container->get($tagBuilder->buildFromName(Service::class, [ServiceTagOption::FROM_CLASS, ServiceTagOption::SERVICE_TARGETED]));
+
+// returns the instance of the service targeted (same as $container->get(Service::class))
+$serviceInstance = $container->get($tagBuilder->buildFromName(Service::class, [ServiceTagOption::FROM_CLASS]));
+```
+
 ### AsDefaultTaggedService
 
 As said before, the priority of a tag is set to 0 by default, but when attaching the attribute `AsDefaultTaggedService` to a service, you can set the priority to some or all of his tags to 1.

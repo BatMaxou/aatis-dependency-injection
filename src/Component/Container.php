@@ -41,8 +41,12 @@ class Container implements ContainerInterface
 
         $serviceWanted = false;
         if (str_starts_with($id, ServiceTag::SERVICE_TARGETED_PREFIX)) {
-            $id = str_replace(ServiceTag::SERVICE_TARGETED_PREFIX, ServiceTag::TAG_PREFIX, $id);
+            $id = str_replace(ServiceTag::SERVICE_TARGETED_PREFIX, '', $id);
             $serviceWanted = true;
+        }
+
+        if (str_starts_with($id, ServiceTag::FROM_CLASS_PREFIX)) {
+            $id = str_replace([ServiceTag::FROM_CLASS_PREFIX, ServiceTag::TAG_PREFIX], '', $id);
         }
 
         if (str_starts_with($id, ServiceTag::TAG_PREFIX)) {

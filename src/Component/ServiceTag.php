@@ -7,9 +7,12 @@ use Aatis\Tag\Component\Tag;
 
 class ServiceTag extends Tag
 {
-    public const SERVICE_TARGETED_PREFIX = '@service_of_tag_';
+    public const SERVICE_TARGETED_PREFIX = '@service_of_';
+    public const FROM_CLASS_PREFIX = '@from_class_';
 
     private bool $serviceTargeted;
+
+    private bool $fromClass;
 
     public function __construct()
     {
@@ -19,10 +22,10 @@ class ServiceTag extends Tag
     public function getName(): string
     {
         return sprintf(
-            '%s%s',
-            $this->isServiceTargeted()
-                ? self::SERVICE_TARGETED_PREFIX
-                : self::TAG_PREFIX,
+            '%s%s%s%s',
+            $this->isServiceTargeted() ? self::SERVICE_TARGETED_PREFIX : '',
+            $this->isFromClass() ? self::FROM_CLASS_PREFIX : '',
+            self::TAG_PREFIX,
             $this->name
         );
     }
@@ -32,9 +35,21 @@ class ServiceTag extends Tag
         return $this->serviceTargeted ?? false;
     }
 
+    public function isFromClass(): bool
+    {
+        return $this->fromClass ?? false;
+    }
+
     public function setServiceTargeted(bool $serviceTargeted): static
     {
         $this->serviceTargeted = $serviceTargeted;
+
+        return $this;
+    }
+
+    public function setFromClass(bool $fromClass): static
+    {
+        $this->fromClass = $fromClass;
 
         return $this;
     }
