@@ -36,6 +36,15 @@ exclude_paths:
   - <...>
 ```
 
+```php
+// Directly in PHP code when building the container :
+
+(new ContainerBuilder($ctx))
+    ->excludePaths('/Folder')
+    ->excludePaths('/OtherFolder/file.txt')
+    ->build();
+```
+
 ### Service config
 
 You can manage in which environment your service must be loaded and the arguments to pass to the constructor.
@@ -57,6 +66,23 @@ services:
             - "tag_name_1"
             - { tag: "tag_name_2", priority: 10 }
             - <...>
+```
+
+```php
+// Directly in PHP code when building the container :
+
+(new ContainerBuilder($ctx))
+    ->register(Service::class, [
+        'environment' => ['env_name1', 'env_name2'],
+        'arguments' => [
+            'variable_name' => 'value',
+        ],
+        'tags' => [
+            'tag_name_1',
+            ['tag' => 'tag_name_2', 'priority' => 10],
+        ],
+    ])
+    ->build();
 ```
 
 > [!NOTE]

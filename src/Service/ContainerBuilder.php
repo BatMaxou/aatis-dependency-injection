@@ -8,14 +8,15 @@ use Aatis\DependencyInjection\Exception\FileNotFoundException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
+ * @phpstan-type ServiceConfig array{
+ *  environment?: array<string>,
+ *  arguments?: array<mixed>,
+ *  tags?: array<string>
+ * }
  * @phpstan-type YamlConfig array{
  *  include_services?: array<int, class-string>,
  *  exclude_paths?: array<int, string>,
- *  services?: array<string, array{
- *      environment?: array<string>,
- *      arguments?: array<mixed>,
- *      tags?: array<string>
- *  }>
+ *  services?: array<string, ServiceConfig>
  * }
  * @phpstan-type ComposerJsonConfig array{
  *  autoload: array{
@@ -38,11 +39,7 @@ class ContainerBuilder
     private array $excludePaths = [];
 
     /**
-     * @var array<string, array{
-     *  environment?: array<string>,
-     *  arguments?: array<mixed>,
-     *  tags?: array<string>
-     * }>
+     * @var array<string, ServiceConfig>
      */
     private array $givenParams = [];
 
@@ -62,7 +59,7 @@ class ContainerBuilder
         private readonly array $ctx,
     ) {
         $this->sourcePath = $this->ctx['DOCUMENT_ROOT'].'/../src';
-        $this->getConfig();
+        $this->processConfig();
     }
 
     public function build(): Container
@@ -77,6 +74,40 @@ class ContainerBuilder
         $this->registerFolder($this->sourcePath);
 
         return $this->container;
+    }
+
+    /**
+     * @param class-string $namespace
+     * @param ServiceConfig|null $config
+     */
+    public function register(string $namespace, ?array $config = null): static
+    {
+        if (!in_array($namespace, $this->includeServices)) {
+            $this->includeServices[] = $namespace;
+        }
+
+        if (!$config) {
+            return $this;
+        }
+
+        if (!isset($this->givenParams[$namespace])) {
+            $this->givenParams[$namespace] = $config;
+
+            return $this;
+        }
+
+        $this->givenParams[$namespace] = array_replace_recursive($config, $this->givenParams[$namespace]);
+
+        return $this;
+    }
+
+    public function excludePath(string $path): static
+    {
+        if (!in_array($path, $this->excludePaths)) {
+            $this->excludePaths[] = $path;
+        }
+
+        return $this;
     }
 
     private function initializeContainer(): void
@@ -129,11 +160,11 @@ class ContainerBuilder
                 continue;
             }
 
-            $this->register($path);
+            $this->registerService($path);
         }
     }
 
-    private function register(string $filePath): void
+    private function registerService(string $filePath): void
     {
         $shortPath = $this->getShortPath($filePath);
         $namespace = $this->transformToNamespace($filePath);
@@ -214,7 +245,7 @@ class ContainerBuilder
         return true;
     }
 
-    private function getConfig(): void
+    private function processConfig(): void
     {
         if (file_exists($this->ctx['DOCUMENT_ROOT'].'/../config/services.yaml')) {
             /** @var YamlConfig */
