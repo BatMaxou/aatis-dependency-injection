@@ -6,6 +6,9 @@ use Psr\Container\ContainerInterface as PsrContainerInterface;
 
 interface ContainerInterface extends PsrContainerInterface
 {
+    public const ALL_SERVICES = '@all_services';
+    public const ALL_ENV = '@all_env';
+
     /**
      * Add a service to the container.
      *

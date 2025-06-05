@@ -209,8 +209,8 @@ class ServiceWithTags
 {
 }
 
-#[AsDefaultTaggedService(['tag_name_1', 'tag_name_2'])]
-class AnotherServiceWithTags
+#[AsDefaultTaggedService(['tag_name_1', SomeInterface::class])]
+class AnotherServiceWithTags implements SomeInterface
 {
 }
 ```
@@ -218,14 +218,108 @@ class AnotherServiceWithTags
 > [!NOTE]
 > If you set the priority of the service into the config, it will override the one set by this attribute.
 
+### Service Subscription
+
+The service subscription feature allows a service to declaratively specify which other services it wants to use. This approach allow a service to retrieve and instanciate others conditionally.
+
+#### Principle
+
+A subscriber service must implement the `ServiceSubscriberInterface` and define the static `getSubscribedServices()` method. This method returns a list of tags identifying the services to subscribe.
+
+```php
+<?php
+use Aatis\DependencyInjection\Interface\ServiceSubscriberInterface;
+use Aatis\Tag\Interface\TagBuilderInterface;
+use Psr\Container\ContainerInterface;
+
+class MyService implements ServiceSubscriberInterface
+{
+    public function __construct(
+        private ContainerInterface $container,
+    ) {
+    }
+
+    public static function getSubscribedServices(TagBuilderInterface $tagBuilder): iterable
+    {
+        yield $tagBuilder->buildFromInterface(SomeInterface::class);
+        yield $tagBuilder->buildFromName('specific_tag');
+    }
+}
+```
+
+> [!NOTE]
+> The $container will not provide a Container but a ServiceStack which is a restricted version of the container that only allows access to the services defined in `getSubscribedServices()`.
+
+#### ServiceSubscriberTrait
+
+To simplify implementation, you can use the `ServiceSubscriberTrait` which provides a builtin `provide()` method to retrieve and filter subscribed services.
+
+##### Trait Configuration
+
+The trait uses PHP templates for better type integration. You can specify the types of input and output services, as well as the context used for filtering.
+
+```php
+<?php
+use Aatis\DependencyInjection\Trait\ServiceSubscriberTrait;
+
+/**
+ * @template InputService of Service<SomeInterface>
+ * @template OutputService of Service<SomeInterface> 
+ * @template Context of array{key: string}
+ */
+class MyService implements ServiceSubscriberInterface
+{
+    /**
+     * @use ServiceSubscriberTrait<InputService, OutputService, Context>
+     */
+    use ServiceSubscriberTrait {
+        __construct as initServiceSubscriber;
+    }
+    
+    public function __construct(ContainerInterface $container) {
+        // Initialize the trait with the service stack
+        $this->initServiceSubscriber($container);
+    }
+}
+```
+
+##### `provide(array $ctx): array`
+
+Retrieve all subscribed services and filters them according to the provided context. It returns an array of services that match the criteria.
+
+##### `pick(mixed $service, array $ctx): bool` (protected)
+
+Filtering method to define which services should be selected according to the context.
+
+```php
+protected function pick(mixed $service, array $ctx): bool
+{
+    // Custom selection logic
+}
+```
+
+> [!NOTE]
+> By default this method returns `true`, meaning all services are selected.
+
+##### `transformOut(mixed $service, array $ctx): mixed` (protected)
+
+Transformation method to modify services before returning them.
+
+```php
+protected function transformOut(mixed $service, array $ctx): mixed
+{
+    // Custom transformation logic
+}
+```
+
+> [!NOTE]
+> By default this method returns the service as is.
+
 ### ServiceFactory
-
 You can use the `ServiceFactory` service to create a service instance.
-
 ```php
 $service = $container->get(ServiceFactory::class)->create(Service::class);
 ```
-
 > [!CAUTION]
 > If the package is properly configured, you should not need to use this service.
 

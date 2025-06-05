@@ -2,6 +2,9 @@
 
 namespace Aatis\DependencyInjection\Component;
 
+use Aatis\DependencyInjection\Interface\ContainerInterface;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
+
 class Dependency
 {
     public string $name;
@@ -18,6 +21,16 @@ class Dependency
         $this->type = $type;
         $this->nullable = $nullable;
         $this->default = $default;
+    }
+
+    public function isContainerInterface(): bool
+    {
+        return ContainerInterface::class === $this->type || PsrContainerInterface::class === $this->type;
+    }
+
+    public function isServiceStack(): bool
+    {
+        return ServiceStack::class === $this->type;
     }
 
     public function isNamespace(): bool

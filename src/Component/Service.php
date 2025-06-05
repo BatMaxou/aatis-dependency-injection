@@ -2,6 +2,8 @@
 
 namespace Aatis\DependencyInjection\Component;
 
+use Aatis\Tag\Interface\TagInterface;
+
 /**
  * @template T of object
  */
@@ -113,6 +115,11 @@ class Service
     public function getAbstracts(): array
     {
         return $this->abstracts;
+    }
+
+    public function hasTag(string|TagInterface $tag): bool
+    {
+        return in_array($tag, $this->tags);
     }
 
     /**
