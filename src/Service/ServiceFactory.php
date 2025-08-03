@@ -178,12 +178,12 @@ class ServiceFactory implements ServiceFactoryInterface
         $tags = [];
         foreach ($targets as $namespace) {
             if (!isset($this->givenParams[$namespace]['tags'])) {
-                return [];
+                continue;
             }
 
             $tagParams = $this->givenParams[$namespace]['tags'];
             if (!is_array($tagParams)) {
-                return [];
+                continue;
             }
 
             foreach ($tagParams as $tagParameter) {

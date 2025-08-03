@@ -44,12 +44,12 @@ trait ContainerTrait
             foreach ($this->services as $service) {
                 $tags = $service->getTags();
 
-                $foundedTag = array_find($tags, fn ($tag) => $tag->getName() === $id);
-                if (!$foundedTag) {
+                $foundTag = array_find($tags, fn ($tag) => $tag->getName() === $id);
+                if (!$foundTag) {
                     continue;
                 }
 
-                $serviceMapping[$this->getTagPriority($foundedTag)][] = $this->formatService($serviceWanted, $service);
+                $serviceMapping[$this->getTagPriority($foundTag)][] = $this->formatService($serviceWanted, $service);
             }
 
             $nbServices = count($serviceMapping);

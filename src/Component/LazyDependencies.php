@@ -27,7 +27,7 @@ class LazyDependencies
             foreach ($parameters as $parameter) {
                 $type = $parameter->getType();
                 if (!$type || !($type instanceof \ReflectionNamedType)) {
-                    throw new \LogicException('Type don\'t have a name');
+                    throw new \LogicException('Type does not have a name');
                 }
 
                 $dependency = new Dependency(
