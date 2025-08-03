@@ -1,10 +1,15 @@
-# Aatis DI
+# Aatis Dependency Injection
 
 ## Installation
 
 ```bash
 composer require aatis/dependency-injection
 ```
+
+## Dependencies
+
+- `aatis/parameter-bag` (https://github.com/BatMaxou/aatis-parameter-bag)
+- `aatis/tag` (https://github.com/BatMaxou/aatis-tag)
 
 ## Usage
 
@@ -26,16 +31,23 @@ Precise the files that are not services.
 # In config/services.yaml file :
 
 exclude_paths:
-  - '/Folder'
-  - '/OtherFolder/file.txt'
+  - "/Folder"
+  - "/OtherFolder/file.txt"
   - <...>
+```
+
+```php
+// Directly in PHP code when building the container :
+
+(new ContainerBuilder($ctx))
+    ->excludePaths('/Folder')
+    ->excludePaths('/OtherFolder/file.txt')
+    ->build();
 ```
 
 ### Service config
 
 You can manage in which environment your service must be loaded and the arguments to pass to the constructor.
-
-You can also precise the class to use for the dependency when it is an interface.
 
 Finally, you can give extra tags to any service.
 
@@ -43,47 +55,75 @@ Finally, you can give extra tags to any service.
 # In config/services.yaml file :
 
 services:
-    Namespace\To\The\Service:
+    Namespace\Of\Service:
         environment:
-            - 'env_name1'
-            - 'env_name2'
+            - "env_name1"
+            - "env_name2"
             - <...>
         arguments:
-            variable_name_into_the_constructor: 'it_value'
+            variable_name: "value"
         tags:
-            - 'tag_name1'
-            - 'tag_name2'
+            - "tag_name_1"
+            - { tag: "tag_name_2", priority: 10 }
             - <...>
 ```
 
-*environment and tags are optional*
+```php
+// Directly in PHP code when building the container :
 
-*the key of an argument must have the same name as in the constructor*
+(new ContainerBuilder($ctx))
+    ->register(Service::class, [
+        'environment' => ['env_name1', 'env_name2'],
+        'arguments' => [
+            'variable_name' => 'value',
+        ],
+        'tags' => [
+            'tag_name_1',
+            ['tag' => 'tag_name_2', 'priority' => 10],
+        ],
+    ])
+    ->build();
+```
+
+> [!NOTE]
+> The key of an argument must have the same name as in the constructor
+
+> [!NOTE]
+> Tags have priority set to 0 by default. You can set it to any number you want.
+> Services will be sorted by highest priority first when the `Container` return multiple services. 
+
+> [!NOTE]
+> It is also possible to define a configuration for an abstract class.
+> This configuration will be used for all the services extending this class, and will be merged with the configuration of the service itself if provided.
 
 ### Interface into constructor
 
-When an interface is requested into the constructor of a service, the DI will try to find a service implementing this interface into your app.
+When an interface is requested into the constructor of a service, the `Container` will try to find a service implementing this interface into your app.
 
-If multiple services implement the interface, the DI will pick the first one found or an already instancied service implementing the interface.
+> [!NOTE]
+> If multiple services implement the interface, the `Container` will pick the one with the highest priority.
+> If many services implementing the interface share the highest priority, the `Container` will priorise an already instancied service.
+> Otherwise, it will pick the first one found.
 
-If you want to use a specific service, don't forget to declare it into the declaration of the service.
-
+If you want to use a specific service, don't forget to declare it into the configuration of the service.
+ 
 ```yaml
 # In config/services.yaml file :
 
 services:
-    Namespace\To\The\Service:
+    Namespace\Of\Service:
         arguments:
-            variable_name_into_the_constructor: 'service_implementing_the_interface'
+            variable_name: Namespace\Of\Service\Wanted\With\The\Interface
 ```
 
-Otherwise if your want to use a specific service of the vendor, do the previous step and precise it into the `includes_services` part of the config.
+> [!WARNING]
+> If your want to use a specific service of the vendor, do the previous step and precise it into the `includes_services` part of the config.
 
 ```yaml
 # In config/services.yaml file :
 
 include_services:
-    - 'Namespace\To\The\Vendor\Service\Implementing\The\Interface'
+    - Namespace\Of\The\Vendor\Service\Implementing\The\Interface
 ```
 
 ### Env variable into constructor
@@ -91,67 +131,197 @@ include_services:
 You can request for a env variable directly into the constructor of a service.
 
 ```php
-public function __construct(string $_my_env_var)
+public function __construct(string $_env_var)
 {
     // ...
 }
 ```
 
-*the name of the variable must start with $_ and be followed by the env variable name in lowercase*
+> [!NOTE]
+> The name of the variable must start with $_ and be followed by the env variable name in lowercase.
 
 ### Container uses
 
 #### Get and Set
 
-With the container, you can get and set any service / env variable you want with the methods `get()` and `set()` of the container.
+With the container, you can get and set any service / env variable (prefixed by `@_`) you want with the methods `get()` and `set()`.
 
-However, to set a service, you must give an instance of the `Service` class. You can create it with the `ServiceFactory` service.
+However, to set a service, you must give an instance of the `Service` class.
+You can create it with the `ServiceFactory` service.
 
 ```php
 // Env Variable
-$container->get('APP_ENV_VAR_NAME');
-$container->set('APP_ENV_VAR_NAME', 'value');
+$container->get('@_ENV_VAR_NAME');
+$container->set('@_ENV_VAR_NAME', 'value');
 
 // Service
-$container->get('Namespace\To\The\Service');
+$container->get(Service::class);
 
-$service = $container->get(ServiceFactory::class)->create('Namespace\To\The\Service');
-$container->set('Namespace\To\The\Service', $service);
+$service = $container->get(ServiceFactory::class)->create(Service::class);
+$container->set(Service::class, $service);
 ``` 
 
-*APP_ENV_VAR_NAME must start with "APP_"*
+#### Get by tag
 
-#### Get by tag(s)
-
-You can get services by tag(s) with the `getByTag()` and `getByTags` method of the `Container`.
+You can get services by tag using the `ServiceTagBuilder`:
 
 ```php
-$container->getByTag('tag_name');
-$container->getByTags(['tag_name1', 'tag_name2']);
+$tagBuilder = $container->get(ServiceTagBuilder::class);
+
+// returns the instance of the services tagged
+$taggedServiceInstances = $container->get($tagBuilder->buildFromName('tag_name_1'));
+
+// returns the Service component instances of the services tagged
+$taggedServices = $container->get($tagBuilder->buildFromName('tag_name_1', [ServiceTagOption::SERVICE_TARGETED]));
 ```
 
-You can also request to get `Service` instances instead of the instance of the services with precise `true` in the second argument.
+#### Get by interface
+
+You can easily get services implementing an interface using `ServiceTagBuilder` with the `buildFromInterface()` method.
 
 ```php
-$container->getByTag('tag_name', true);
-$container->getByTags(['tag_name1', 'tag_name2'], true);
+$tagBuilder = $container->get(ServiceTagBuilder::class);
+$taggedServiceInstances = $container->get($tagBuilder->buildFromInterface(Interface::class));
 ```
 
-#### Get by interface(s)
+#### Get single service
 
-You can get services by interface(s) with the `getByInterface()` and `getByInterfaces` method of the `Container`.
+You can get the `Service` of a single service using `ServiceTagOption::FROM_CLASS` and `ServiceTagOption::SERVICE_TARGETED` options.
 
 ```php
-$container->getByInterface('Namespace\To\The\Interface');
-$container->getByInterfaces(['Namespace\To\The\Interface1', 'Namespace\To\The\Interface2']);
+$tagBuilder = $container->get(ServiceTagBuilder::class);
+
+// returns the Service component instance of the service targeted
+$service = $container->get($tagBuilder->buildFromName(Service::class, [ServiceTagOption::FROM_CLASS, ServiceTagOption::SERVICE_TARGETED]));
+
+// returns the instance of the service targeted (same as $container->get(Service::class))
+$serviceInstance = $container->get($tagBuilder->buildFromName(Service::class, [ServiceTagOption::FROM_CLASS]));
 ```
 
-Like tags, you can also request to get `Service` instances instead of the instance of the services with precise `true` in the second argument.
+### AsDefaultTaggedService
+
+As said before, the priority of a tag is set to 0 by default, but when attaching the attribute `AsDefaultTaggedService` to a service, you can set the priority to some or all of his tags to 1.
 
 ```php
-$container->getByInterface('Namespace\To\The\Interface', true);
-$container->getByInterfaces(['Namespace\To\The\Interface1', 'Namespace\To\The\Interface2'], true);
+<?php
+#[AsDefaultTaggedService]
+class ServiceWithTags
+{
+}
+
+#[AsDefaultTaggedService(['tag_name_1', SomeInterface::class])]
+class AnotherServiceWithTags implements SomeInterface
+{
+}
 ```
+
+> [!NOTE]
+> If you set the priority of the service into the config, it will override the one set by this attribute.
+
+### Service Subscription
+
+The service subscription feature allows a service to declaratively specify which other services it wants to use. This approach allow a service to retrieve and instanciate others conditionally.
+
+#### Principle
+
+A subscriber service must implement the `ServiceSubscriberInterface` and define the static `getSubscribedServices()` method. This method returns a list of tags identifying the services to subscribe.
+
+```php
+<?php
+use Aatis\DependencyInjection\Interface\ServiceSubscriberInterface;
+use Aatis\Tag\Interface\TagBuilderInterface;
+use Psr\Container\ContainerInterface;
+
+class MyService implements ServiceSubscriberInterface
+{
+    public function __construct(
+        private ContainerInterface $container,
+    ) {
+    }
+
+    public static function getSubscribedServices(TagBuilderInterface $tagBuilder): iterable
+    {
+        yield $tagBuilder->buildFromInterface(SomeInterface::class);
+        yield $tagBuilder->buildFromName('specific_tag');
+    }
+}
+```
+
+> [!NOTE]
+> The $container will not provide a Container but a ServiceStack which is a restricted version of the container that only allows access to the services defined in `getSubscribedServices()`.
+
+#### ServiceSubscriberTrait
+
+To simplify implementation, you can use the `ServiceSubscriberTrait` which provides a builtin `provide()` method to retrieve and filter subscribed services.
+
+##### Trait Configuration
+
+The trait uses PHP templates for better type integration. You can specify the types of input and output services, as well as the context used for filtering.
+
+```php
+<?php
+use Aatis\DependencyInjection\Trait\ServiceSubscriberTrait;
+
+/**
+ * @template InputService of Service<SomeInterface>
+ * @template OutputService of Service<SomeInterface> 
+ * @template Context of array{key: string}
+ */
+class MyService implements ServiceSubscriberInterface
+{
+    /**
+     * @use ServiceSubscriberTrait<InputService, OutputService, Context>
+     */
+    use ServiceSubscriberTrait {
+        __construct as initServiceSubscriber;
+    }
+    
+    public function __construct(ContainerInterface $container) {
+        // Initialize the trait with the service stack
+        $this->initServiceSubscriber($container);
+    }
+}
+```
+
+##### `provide(array $ctx): array`
+
+Retrieve all subscribed services and filters them according to the provided context. It returns an array of services that match the criteria.
+
+##### `pick(mixed $service, array $ctx): bool` (protected)
+
+Filtering method to define which services should be selected according to the context.
+
+```php
+protected function pick(mixed $service, array $ctx): bool
+{
+    // Custom selection logic
+}
+```
+
+> [!NOTE]
+> By default this method returns `true`, meaning all services are selected.
+
+##### `transformOut(mixed $service, array $ctx): mixed` (protected)
+
+Transformation method to modify services before returning them.
+
+```php
+protected function transformOut(mixed $service, array $ctx): mixed
+{
+    // Custom transformation logic
+}
+```
+
+> [!NOTE]
+> By default this method returns the service as is.
+
+### ServiceFactory
+You can use the `ServiceFactory` service to create a service instance.
+```php
+$service = $container->get(ServiceFactory::class)->create(Service::class);
+```
+> [!CAUTION]
+> If the package is properly configured, you should not need to use this service.
 
 ### ServiceInstanciator
 
@@ -160,13 +330,17 @@ You can use the `ServiceInstanciator` service and the `setInstance()` method of 
 You can choose between two methods to instanciate a service. For the first one, you must inform the arguments to pass to the constructor into the config. For the second one, you must create the instance yourself.
 
 ```php
-$service = $container->get(ServiceFactory::class)->create('Namespace\To\The\Service');
+$service = $container->get(ServiceFactory::class)->create(Service::class);
 
 // Method 1
 $instance = $container->get(ServiceInstanciator::class)->instanciate($service)
 
 // Method 2
-$instance = new Namespace\To\The\Service($arg1, $arg2, ...);
+$instance = new Service($arg1, $arg2, ...);
 
 $service->setInstance($instance);
-$container->set('Namespace\To\The\Service', $service);
+$container->set(Service::class, $service);
+```
+
+> [!CAUTION]
+> If the package is properly configured, you should not need to use this service.
