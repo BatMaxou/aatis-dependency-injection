@@ -6,22 +6,17 @@ namespace Aatis\DependencyInjection\Attribute;
 class AsDefaultTaggedService
 {
     /**
-     * @param string[] $tags
+     * @param string[] $subjects
      */
-    public function __construct(private array $tags = [])
+    public function __construct(private array $subjects = [])
     {
     }
 
     /**
      * @return string[]
      */
-    public function getTags(): array
+    public function getSubjects(): array
     {
-        return $this->tags;
-    }
-
-    public function hasTag(string $tag): bool
-    {
-        return in_array($tag, $this->tags, true);
+        return $this->subjects;
     }
 }

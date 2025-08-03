@@ -4,6 +4,7 @@ namespace Aatis\DependencyInjection\Service;
 
 use Aatis\DependencyInjection\Component\Dependency;
 use Aatis\DependencyInjection\Component\Service;
+use Aatis\DependencyInjection\Component\ServiceStack;
 use Aatis\DependencyInjection\Enum\ServiceTagOption;
 use Aatis\DependencyInjection\Exception\ArgumentNotFoundException;
 use Aatis\DependencyInjection\Exception\ClassNotFoundException;
@@ -11,6 +12,7 @@ use Aatis\DependencyInjection\Exception\EnvironmentVariableNotFoundException;
 use Aatis\DependencyInjection\Exception\MissingContainerException;
 use Aatis\DependencyInjection\Exception\ServiceNotFoundException;
 use Aatis\DependencyInjection\Interface\ServiceInstanciatorInterface;
+use Aatis\DependencyInjection\Interface\ServiceSubscriberInterface;
 use Psr\Container\ContainerInterface;
 
 class ServiceInstanciator implements ServiceInstanciatorInterface
@@ -36,15 +38,11 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
     public function instanciate(Service $service): object
     {
         $instance = $service->getInstance();
-
         if ($instance) {
             return $instance;
         }
 
-        if (!empty($args = $this->loadArgs($service))) {
-            $service->setArgs($args);
-        }
-
+        $service->setArgs($this->loadArgs($service));
         $service->setInstance(new ($service->getClass())(...$service->getArgs()));
 
         return $service->getInstance() ?? throw new \LogicException('Service instance not set');
@@ -59,8 +57,15 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
     {
         $args = [];
         $givenArgs = $service->getGivenArgs();
+        $isServiceSubscriber = $service->hasTag($this->serviceTagBuilder->buildFromInterface(ServiceSubscriberInterface::class));
 
         foreach ($service->getDependencies() as $dependency) {
+            if ($isServiceSubscriber && ($dependency->isContainerInterface() || $dependency->isServiceStack())) {
+                /** @var Service<ServiceSubscriberInterface> $service */
+                $args[] = $this->loadServiceStack($dependency, $service);
+                continue;
+            }
+
             $args[] = match (true) {
                 $dependency->isNamespace() => $this->loadServiceDependency($dependency, $givenArgs),
                 $dependency->isEnvVariable() => $this->loadEnvVariable($dependency),
@@ -147,5 +152,52 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
         }
 
         return $services[0]->getInstance() ?? $this->instanciate($services[0]);
+    }
+
+    /**
+     * @param Service<ServiceSubscriberInterface> $service
+     */
+    private function loadServiceStack(Dependency $dependency, Service $service): mixed
+    {
+        if (null === $container = $this->container) {
+            throw new MissingContainerException('Container not set');
+        }
+
+        $services = [];
+        $toPick = $service->getClass()::getSubscribedServices($this->serviceTagBuilder);
+        foreach ($toPick as $tag) {
+            /** @var Service<object>[]|Service<object> $result */
+            $result = $container->get($tag);
+            if (is_array($result)) {
+                foreach ($result as $service) {
+                    $this->pushServiceToStack($service, $services);
+                }
+
+                continue;
+            }
+
+            $this->pushServiceToStack($result, $services);
+        }
+
+        if (empty($services)) {
+            if (null === $dependency->default && $dependency->nullable) {
+                return null;
+            }
+
+            if ($dependency->default) {
+                return $dependency->default;
+            }
+        }
+
+        return new ServiceStack($this, $services);
+    }
+
+    /**
+     * @param Service<object> $service
+     * @param array<Service<object>> $services
+     */
+    private function pushServiceToStack(Service $service, array &$services): void
+    {
+        $services[$service->getClass()] = $service;
     }
 }

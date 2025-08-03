@@ -43,7 +43,6 @@ class ServiceFactory implements ServiceFactoryInterface
         ];
 
         if (!empty($tags)) {
-            /** @var ServiceTag[] $tags */
             $service->setTags(array_unique(array_reverse($tags)));
         }
 
@@ -79,17 +78,23 @@ class ServiceFactory implements ServiceFactoryInterface
     {
         $attributes = $service->getReflexion()->getAttributes(AsDefaultTaggedService::class);
 
-        return empty($attributes) ? null : $this->transformTags($attributes[0]->newInstance()->getTags());
+        return empty($attributes) ? null : $this->toTags($attributes[0]->newInstance()->getSubjects());
     }
 
     /**
-     * @param array<string> $tags
+     * @param string[] $subjects
      *
      * @return array<string>
      */
-    private function transformTags(array $tags): array
+    private function toTags(array $subjects): array
     {
-        return array_map(fn (string $tagName) => $this->serviceTagBuilder->buildFromName($tagName), $tags);
+        return array_map(
+            fn (string $tag) => match (true) {
+                interface_exists($tag) => $this->serviceTagBuilder->buildFromInterface($tag, [TagOption::BUILD_OBJECT]),
+                default => $this->serviceTagBuilder->buildFromName($tag, [TagOption::BUILD_OBJECT]),
+            },
+            $subjects,
+        );
     }
 
     /**
