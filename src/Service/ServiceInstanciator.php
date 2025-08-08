@@ -166,8 +166,13 @@ class ServiceInstanciator implements ServiceInstanciatorInterface
         $services = [];
         $toPick = $service->getClass()::getSubscribedServices($this->serviceTagBuilder);
         foreach ($toPick as $tag) {
+            try {
+                $result = $container->get($tag);
+            } catch (ServiceNotFoundException $e) {
+                $result = [];
+            }
+
             /** @var Service<object>[]|Service<object> $result */
-            $result = $container->get($tag);
             if (is_array($result)) {
                 foreach ($result as $service) {
                     $this->pushServiceToStack($service, $services);
